@@ -1,0 +1,6 @@
+#ifndef MIDI_HANDLING_H
+#define MIDI_HANDLING_H
+
+
+
+#endif // MIDI_HANDLING_H
