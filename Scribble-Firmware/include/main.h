@@ -14,13 +14,15 @@ typedef struct
 	uint8_t clockMode;				// 0 = preset BPM, 1 = external MIDI clock, 2 = global BPM
 	float globalBpm;					// Global BPM value
 	uint8_t midiOutMode; 			// 0 = Type A, 1 = Type B
+	uint8_t useLargePresetFont;	// 0 = use small text, 1 = use large text
 } GlobalSettings;
 
 typedef struct
 {
-	char name[32];					// Preset name
-	char secondaryText[32];		// Secondary text info
-	uint16_t colourOverride;	// Main UI colour override (16-bit RGB565)
+	char name[32];						// Preset name
+	char secondaryText[32];			// Secondary text info
+	uint8_t colourOverrideFlag;	// 0 = use main colour, 1 = use preset colour override
+	uint16_t colourOverride;		// Main UI colour override (16-bit RGB565)
 	float bpm;
 } Presets;
 

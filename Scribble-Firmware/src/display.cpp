@@ -25,6 +25,34 @@ void display_DrawMainScreen()
 	lcd.setTextColor(ST77XX_WHITE);
 	lcd.setCursor(PRESET_NUM_X_OFFSET, PRESET_NUM_Y_OFFSET);
 
-	lcd.print("Scribble MIDI");
+	lcd.print(globalSettings.currentPreset+1);
 
+
+	lcd.setFont(&BPM_FONT);
+	lcd.setTextColor(ST77XX_WHITE);
+	lcd.setCursor(BPM_X_OFFSET, BPM_Y_OFFSET);
+	char bpmString[6];
+	float testBpm = 120.0; // Example BPM value
+	sprintf(bpmString, "%.1f", testBpm);
+	lcd.print(bpmString);
+
+
+	// Draw main text
+	if(globalSettings.useLargePresetFont)
+	{
+		lcd.setFont(&LARGE_PRESET_FONT);
+	}
+	else
+	{
+		lcd.setFont(&PRESET_NAME_FONT);
+	}
+	lcd.setTextColor(ST77XX_WHITE);
+	lcd.setCursor(PRESET_NAME_X_OFFSET, PRESET_NAME_Y_OFFSET);
+
+	char testPresetName[] = {"Preset 1\n"};
+	int16_t  x1, y1;
+	uint16_t w, h;
+	lcd.getTextBounds(testPresetName, PRESET_NAME_X_OFFSET, PRESET_NAME_Y_OFFSET, &x1, &y1, &w, &h);
+	lcd.setCursor(LCD_WIDTH/2 - w/2, PRESET_NAME_Y_OFFSET);
+	lcd.print(testPresetName);
 }
