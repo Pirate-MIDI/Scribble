@@ -24,7 +24,7 @@ typedef struct
 	float bpm;
 } Presets;
 
-
+extern float currentBpm;
 extern GlobalSettings globalSettings;
 extern Presets presets[];
 #endif // MAIN_H

@@ -12,8 +12,11 @@
 // UI parameters
 #define MAIN_FILL_HEIGHT	130
 
+#define PRESET_NUM_X_OFFSET		LCD_WIDTH - 40
+#define PRESET_NUM_Y_OFFSET		20
+
 #define PRESET_NUM_FONT			FreeSansBold18pt7b
-#define STANDARD_PRESET_FONT	FreeSansBold18pt7b
+#define PRESET_NAME_FONT		FreeSansBold18pt7b
 #define LARGE_PRESET_FONT		FreeSansBold24pt7b
 
 // Colours
