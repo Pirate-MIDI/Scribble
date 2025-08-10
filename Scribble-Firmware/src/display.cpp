@@ -16,17 +16,24 @@ void display_Init()
 
 void display_DrawMainScreen()
 {
+	int16_t  x1, y1;
+	uint16_t w, h;
+
 	// Draw main colour boxes
 	lcd.fillRect(0, LCD_HEIGHT-MAIN_FILL_HEIGHT, 320, MAIN_FILL_HEIGHT, GEN_LOSS_BLUE);
 	lcd.fillRect(0, 0, 320, LCD_HEIGHT-MAIN_FILL_HEIGHT, ST77XX_BLACK);
 
-	// Draw info bars
+	// Draw info bar
 	lcd.setFont(&PRESET_NUM_FONT);
 	lcd.setTextColor(ST77XX_WHITE);
 	lcd.setCursor(PRESET_NUM_X_OFFSET, PRESET_NUM_Y_OFFSET);
 
-	lcd.print(globalSettings.currentPreset+1);
+	lcd.setCursor(PRESET_NAME_X_OFFSET, PRESET_NAME_Y_OFFSET);
+	lcd.getTextBounds("128", PRESET_NAME_X_OFFSET, PRESET_NAME_Y_OFFSET, &x1, &y1, &w, &h);
+	lcd.setCursor(LCD_WIDTH/2 - w/2, PRESET_NAME_Y_OFFSET);
 
+	lcd.print(globalSettings.currentPreset+1);
+	//lcd.print(128);
 
 	lcd.setFont(&BPM_FONT);
 	lcd.setTextColor(ST77XX_WHITE);
@@ -46,12 +53,10 @@ void display_DrawMainScreen()
 	{
 		lcd.setFont(&PRESET_NAME_FONT);
 	}
+	
+	char testPresetName[] = {"Preset 1\n"};
 	lcd.setTextColor(ST77XX_WHITE);
 	lcd.setCursor(PRESET_NAME_X_OFFSET, PRESET_NAME_Y_OFFSET);
-
-	char testPresetName[] = {"Preset 1\n"};
-	int16_t  x1, y1;
-	uint16_t w, h;
 	lcd.getTextBounds(testPresetName, PRESET_NAME_X_OFFSET, PRESET_NAME_Y_OFFSET, &x1, &y1, &w, &h);
 	lcd.setCursor(LCD_WIDTH/2 - w/2, PRESET_NAME_Y_OFFSET);
 	lcd.print(testPresetName);

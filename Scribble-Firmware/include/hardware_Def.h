@@ -1,6 +1,7 @@
 #ifndef HARDWARE_H
 #define HARDWARE_H
 
+#define TRS_SERIAL_PORT		Serial1
 #define MIDI_TX_TIP_PIN		0
 #define MIDI_TX_RING_PIN	3
 #define MIDI_RX_PIN			1

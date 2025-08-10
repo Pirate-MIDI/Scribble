@@ -12,7 +12,7 @@
 // UI parameters
 #define MAIN_FILL_HEIGHT	130
 
-#define PRESET_NUM_X_OFFSET		LCD_WIDTH - 96
+#define PRESET_NUM_X_OFFSET		LCD_WIDTH - 70
 #define PRESET_NUM_Y_OFFSET		30
 
 #define BPM_X_OFFSET					10
