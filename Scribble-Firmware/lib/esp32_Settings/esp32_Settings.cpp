@@ -11,6 +11,9 @@ void* presetsPtr = NULL;
 uint8_t* bootFlagPtr = NULL;
 size_t numPresets = 0;
 
+uint16_t globalSettingsSize = 0;
+uint16_t presetSize = 0;
+
 void (*assignDefaultGlobalSettings)() = nullptr;
 void (*assignDefaultPresetSettings)() = nullptr;
 
@@ -18,13 +21,14 @@ void (*assignDefaultPresetSettings)() = nullptr;
 // If the files are not present or the sizes do not match, it will format the file
 // This function also initialises the global and preset settings pointers as well as the number of presets
 // The bootflag is a pointer to the global settings boot state flag
-void esp32Settings_BootCheck(	void* globalSettings, void* presets,
-										size_t numPresets, uint8_t* bootFlag)
+void esp32Settings_BootCheck(	void* globalSettings, uint16_t gSize, void* presets,
+										uint16_t pSize, size_t numPresets, uint8_t* bootFlag)
 {
+	ESP_LOGI(SETTINGS_TAG, "Preset size %d", pSize);
 	// Perform the boot check
 	ESP_LOGI(SETTINGS_TAG, "Boot check initiated.");
-	if (globalSettingsPtr == NULL || presetsPtr == NULL
-		|| numPresets == 0 || bootFlagPtr == NULL)
+	if (globalSettings == nullptr || presets == nullptr
+		|| numPresets == 0 || bootFlag == nullptr)
 	{
 		ESP_LOGE(SETTINGS_TAG, "Invalid settings or presets pointers.");
 		return;
@@ -35,6 +39,8 @@ void esp32Settings_BootCheck(	void* globalSettings, void* presets,
 	presetsPtr = presets;
 	bootFlagPtr = bootFlag;
 	numPresets = numPresets;
+	globalSettingsSize = gSize;
+	presetSize = pSize;
 	
 	// Check if an appropriate file system is available
 	ESP_LOGI(SETTINGS_TAG, "Checking boot state...");
@@ -64,7 +70,7 @@ void esp32Settings_BootCheck(	void* globalSettings, void* presets,
 	File globalConfigFile = LittleFS.open("/global.txt", "r");
 	size_t globalConfigFileSize = globalConfigFile.size();
 	ESP_LOGI(SETTINGS_TAG, "Global config file size: %d", globalConfigFileSize);
-	if (globalConfigFileSize != sizeof(globalSettingsPtr))
+	if (globalConfigFileSize != globalSettingsSize)
 	{
 		ESP_LOGI(SETTINGS_TAG, "Global settings file size does not match.");
 		esp32Settings_NewDeviceConfig();
@@ -78,8 +84,8 @@ void esp32Settings_BootCheck(	void* globalSettings, void* presets,
 	File presetsFile = LittleFS.open("/presets.txt", "r");
 	size_t presetsFileSize = presetsFile.size();
 	presetsFile.close();
-
-	if (presetsFileSize != sizeof(presetsPtr)*numPresets)
+	ESP_LOGI(SETTINGS_TAG, "Presets size: %d (expected %d).", presetsFileSize, presetSize*numPresets);
+	if (presetsFileSize != presetSize*numPresets)
 	{
 		ESP_LOGI(SETTINGS_TAG, "Presets file size does not match.");
 		esp32Settings_NewDeviceConfig();
@@ -109,7 +115,6 @@ void esp32Settings_NewDeviceConfig()
 	*bootFlagPtr = DEVICE_CONFIGURED_VALUE;
 	if( assignDefaultGlobalSettings != nullptr)
 		assignDefaultGlobalSettings();
-
 	else
 		ESP_LOGE(SETTINGS_TAG, "No default global settings function assigned. Pointer is null.");
 
@@ -120,10 +125,11 @@ void esp32Settings_NewDeviceConfig()
 	// Create the storage file for the global config
 	ESP_LOGI(SETTINGS_TAG, "Creating global settings file...");
 	File globalConfigFile = LittleFS.open("/global.txt", "w");
-	globalConfigFile.write((uint8_t *)globalSettingsPtr, sizeof(&globalSettingsPtr));
+	globalConfigFile.write((uint8_t *)globalSettingsPtr, globalSettingsSize);
 	globalConfigFile.close();
 
-	ESP_LOGI(SETTINGS_TAG, "%d", bootFlagPtr);
+	ESP_LOGI(SETTINGS_TAG, "%d", *bootFlagPtr);
+	
 	// Configure default preset values
 	if( assignDefaultPresetSettings != nullptr)
 		assignDefaultPresetSettings();
@@ -135,11 +141,13 @@ void esp32Settings_NewDeviceConfig()
 	// Create the presets storage file
 	ESP_LOGI(SETTINGS_TAG, "Creating presets file...");
 	File presetsFile = LittleFS.open("/presets.txt", "w");
-	presetsFile.write((uint8_t *)presetsPtr, sizeof(&presetsPtr)*numPresets);
+
+	size_t len = presetsFile.write((uint8_t *)presetsPtr, presetSize*numPresets);
 	presetsFile.close();
+	ESP_LOGI(SETTINGS_TAG, "Wrote %d bytes to presets file (expected %d).", len, presetSize*numPresets);
 	
 	File testFile = LittleFS.open("/global.txt", "r");
-	testFile.read((uint8_t *)globalSettingsPtr, sizeof(&globalSettingsPtr));
+	testFile.read((uint8_t *)globalSettingsPtr, globalSettingsSize);
 	testFile.close();
 	ESP_LOGI(SETTINGS_TAG, "Device configured. Rebooting.");
 
@@ -152,14 +160,14 @@ void esp32Settings_StandardBoot()
 	// Read the preset data into the struct array
 	ESP_LOGI(SETTINGS_TAG, "Reading global.txt");
 	File globalConfigFile = LittleFS.open("/global.txt", "r");
-	globalConfigFile.read((uint8_t *)globalSettingsPtr, sizeof(&globalSettingsPtr));
+	globalConfigFile.read((uint8_t *)globalSettingsPtr, globalSettingsSize);
 	globalConfigFile.close();
 
 	// Read the preset data into the struct array
 	ESP_LOGI(SETTINGS_TAG, "Reading presets...");
 
 	File presetsFile = LittleFS.open("/presets.txt", "r");
-	presetsFile.read((uint8_t *)presetsPtr, sizeof(&presetsPtr)*numPresets);
+	presetsFile.read((uint8_t *)presetsPtr, presetSize*numPresets);
 	presetsFile.close();
 
 	ESP_LOGI(SETTINGS_TAG, "Standard boot complete!");
@@ -171,9 +179,9 @@ void esp32Settings_SoftwareReset()
 	ESP.restart();
 }
 
-void esp32Settings_AssignDefaultGlobalSettings(void (*fptr)())
+void esp32Settings_AssignDefaultGlobalSettings(void (fptr)())
 {
-	if (assignDefaultGlobalSettings != nullptr)
+	if (fptr != nullptr)
 	{
 		assignDefaultGlobalSettings = fptr;
 	}
@@ -183,9 +191,9 @@ void esp32Settings_AssignDefaultGlobalSettings(void (*fptr)())
 	}
 }
 
-void esp32Settings_AssignDefaultPresetSettings(void (*fptr)())
+void esp32Settings_AssignDefaultPresetSettings(void (fptr)())
 {
-	if (assignDefaultPresetSettings != nullptr)
+	if (fptr != nullptr)
 	{
 		assignDefaultPresetSettings = fptr;
 	}

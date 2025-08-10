@@ -52,10 +52,10 @@ typedef struct
 	uint8_t colourOverrideFlag;	// 0 = use main colour, 1 = use preset colour override
 	uint16_t colourOverride;		// Main UI colour override (16-bit RGB565)
 	float bpm;
-} Presets;
+} Preset;
 
 extern uint8_t wifiState;			 // 0 = not connected, 1 = connected, 2 = AP
 extern float currentBpm;
 extern GlobalSettings globalSettings;
-extern Presets presets[];
+extern Preset presets[];
 #endif // MAIN_H

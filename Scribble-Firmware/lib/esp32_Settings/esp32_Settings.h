@@ -3,8 +3,8 @@
 #include <Arduino.h>
 #include "stdlib.h"
 
-void esp32Settings_BootCheck(	void* globalSettings, void* presets,
-										size_t numPresets, uint8_t* bootFlag);
+void esp32Settings_BootCheck(	void* globalSettings, uint16_t gSize, void* presets,
+										uint16_t pSize, size_t numPresets, uint8_t* bootFlag);
 void esp32Settings_NewDeviceConfig();
 void esp32Settings_StandardBoot();
 void esp32Settings_SoftwareReset();

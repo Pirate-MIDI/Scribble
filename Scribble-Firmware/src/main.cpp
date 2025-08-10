@@ -7,22 +7,22 @@
 
 float currentBpm = 120.0;
 GlobalSettings globalSettings;
-Presets presets[NUM_PRESETS];
+Preset presets[NUM_PRESETS];
 
 void defaultGlobalSettingsAssignment();
 void defaultPresetsAssignment();
 
 void setup()
 {
-	Serial0.begin(115200);
+	delay(3000);
+	//Serial0.begin(115200);
 	Serial.begin(115200);
 	ESP_LOGI("MAIN", "Starting setup...");
-	esp32Settings_BootCheck(&globalSettings, presets, NUM_PRESETS, &globalSettings.bootState);
 	
 	// Assign global and preset settings and boot the file system
 	esp32Settings_AssignDefaultGlobalSettings(defaultGlobalSettingsAssignment);
 	esp32Settings_AssignDefaultPresetSettings(defaultPresetsAssignment);
-	esp32Settings_BootCheck(&globalSettings, presets, NUM_PRESETS, &globalSettings.bootState);
+	esp32Settings_BootCheck(&globalSettings, sizeof(GlobalSettings), presets, sizeof(Preset), NUM_PRESETS, &globalSettings.bootState);
 
 	display_Init();
 }
