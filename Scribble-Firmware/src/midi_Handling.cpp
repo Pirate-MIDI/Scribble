@@ -12,6 +12,13 @@
 
 static const char* MIDI_TAG = "MIDI";
 
+uint8_t bleConnected = 0; 			// BLE state, 0 = not connected, 1 = connected
+uint8_t newBleEvent = 0;			// Flag to indicate a new BLE event has occurred
+uint8_t trsMidiReceived = 0;
+uint8_t bleMidiReceived = 0;
+uint8_t rtpMidiReceived = 0;
+
+
 // TRS MIDI instance
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, trsMidi)
 
@@ -32,6 +39,8 @@ void midi_ProgramChangeHandler(byte channel, byte number);
 void midi_SysExHandler(byte* data, unsigned length);
 void midi_ClockHandler();
 
+void midi_BleConnectedHandler();
+void midi_BleDisconnectedHandler();
 
 // Public functions
 void midi_Init()
@@ -46,9 +55,6 @@ void midi_Init()
 		midi_SetOutTypeB();
 	}
 
-
-	
-
 	// Assign callback handlers
 	trsMidi.setHandleControlChange(midi_ControlChangeHandler);
 	trsMidi.setHandleProgramChange(midi_ProgramChangeHandler);
@@ -59,6 +65,8 @@ void midi_Init()
 	blueMidi.setHandleProgramChange(midi_ProgramChangeHandler);
 	blueMidi.setHandleSystemExclusive(midi_SysExHandler);
 	blueMidi.setHandleClock(midi_ClockHandler);
+	BLEblueMidi.setHandleConnected(midi_BleConnectedHandler);	
+	BLEblueMidi.setHandleDisconnected(midi_BleDisconnectedHandler);	
 
 	rtpMidi.setHandleControlChange(midi_ControlChangeHandler);
 	rtpMidi.setHandleProgramChange(midi_ProgramChangeHandler);
@@ -76,6 +84,7 @@ void midi_Init()
 		blueMidi.turnThruOn();
 	else
 		blueMidi.turnThruOff();
+
 
 	if(globalSettings.midiThruFlags[MIDI_WIFI][MIDI_WIFI])
 		rtpMidi.turnThruOn();
@@ -132,64 +141,41 @@ void midi_SetOutTypeB()
 	digitalWrite(MIDI_TX_RING_PIN, HIGH);
 }
 
-void midi_ControlChangeHandler(byte channel, byte number, byte value)
+void midi_ReadAll()
 {
-	if(channel == globalSettings.midiChannel || globalSettings.midiChannel == MIDI_CHANNEL_OMNI)
+	// Read from TRS MIDI
+	if(trsMidi.read())
 	{
-		switch(number)
+		trsMidiReceived = 1;
+	}
+
+	// Read from BLE MIDI
+	if(blueMidi.read())
+	{
+		bleMidiReceived = 1;
+	}
+
+	// Read from WiFi RTP MIDI
+	if(wifiState == WIFI_STATE_CONNECTED)
+	{
+		// If not connected, still read to clear buffer
+		if(rtpMidi.read())
 		{
-			case PRESET_UP_CC:
-				// Increment preset index
-				if(globalSettings.currentPreset < NUM_PRESETS - 1)
-				{
-					globalSettings.currentPreset++;
-				}
-				// Wrap around to the first preset
-				else
-				{
-					globalSettings.currentPreset = 0;
-				}
-				break;
-			case PRESET_DOWN_CC:
-				// Decrement preset index
-				if(globalSettings.currentPreset > 0)
-				{
-					globalSettings.currentPreset--;
-				}
-				// Wrap around to the last preset
-				else
-				{
-					globalSettings.currentPreset = NUM_PRESETS - 1;
-				}
-				break;
-			case PRESET_SELECT_CC:
-				if(value < NUM_PRESETS)
-				{
-					globalSettings.currentPreset = value;
-				}
-				break;
-			default:
-				break;
+			rtpMidiReceived = 1;
 		}
 	}
 }
 
-void midi_ProgramChangeHandler(byte channel, byte number)
+void midi_BleConnectedHandler()
 {
-	if(number >= NUM_PRESETS)
-	{
-		ESP_LOGE(MIDI_TAG, "Invalid program change number: %d", number);
-		return;
-	}
-	globalSettings.currentPreset = number;
+	ESP_LOGI(MIDI_TAG, "BLE MIDI connected");
+	bleConnected = 1;
+	newBleEvent = 1;
 }
 
-void midi_SysExHandler(byte* data, unsigned length)
+void midi_BleDisconnectedHandler()
 {
-
-}
-
-void midi_ClockHandler()
-{
-
+	ESP_LOGI(MIDI_TAG, "BLE MIDI disconnected");
+	bleConnected = 0;
+	newBleEvent = 1;
 }

@@ -14,6 +14,7 @@
 #define MIDI_BLE					1	
 #define MIDI_WIFI					2
 #define NUM_MIDI_INTERFACES	3	// TRS, BLE, WiFi
+#define MIDI_INDICATOR_ON_TIME		80 // Time in milliseconds for MIDI indicator to stay on
 
 #define WIRELESS_MODE_NONE		0
 #define WIRELESS_MODE_BLE		1
@@ -58,4 +59,11 @@ extern uint8_t wifiState;			 // 0 = not connected, 1 = connected, 2 = AP
 extern float currentBpm;
 extern GlobalSettings globalSettings;
 extern Preset presets[];
+
+
+void midi_ControlChangeHandler(byte channel, byte number, byte value);
+void midi_ProgramChangeHandler(byte channel, byte number);
+void midi_SysExHandler(byte* data, unsigned length);
+void midi_ClockHandler();
+
 #endif // MAIN_H

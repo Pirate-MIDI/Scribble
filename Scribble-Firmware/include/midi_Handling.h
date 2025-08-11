@@ -11,4 +11,12 @@
 void midi_Init();
 void midi_InitWiFiRTP();
 
+void midi_ReadAll();
+
+extern uint8_t bleConnected;
+extern uint8_t newBleEvent;
+extern uint8_t trsMidiReceived;
+extern uint8_t bleMidiReceived;
+extern uint8_t rtpMidiReceived;
+
 #endif // MIDI_HANDLING_H
