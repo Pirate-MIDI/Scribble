@@ -1,5 +1,5 @@
 #include "Arduino.h"
-#include	"hardware_Def.h"
+#include	"hardware_def.h"
 #include "Adafruit_ST7789.h"
 #include "display.h"
 #include "main.h"

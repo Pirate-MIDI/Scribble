@@ -75,18 +75,18 @@ void midi_Init()
 
 	// Configure same port thru routing
 	// TRS MIDI
-	if(globalSettings.midiThruFlags[MIDI_TRS][MIDI_TRS])
+	if(globalSettings.midiTrsThruHandles[MIDI_TRS])
 		trsMidi.turnThruOn();
 	else
 		trsMidi.turnThruOff();
 
-	if(globalSettings.midiThruFlags[MIDI_BLE][MIDI_BLE])
+	if(globalSettings.midiBleThruHandles[MIDI_BLE])
 		blueMidi.turnThruOn();
 	else
 		blueMidi.turnThruOff();
 
 
-	if(globalSettings.midiThruFlags[MIDI_WIFI][MIDI_WIFI])
+	if(globalSettings.midiWifiThruHandles[MIDI_WIFI])
 		rtpMidi.turnThruOn();
 	else
 		rtpMidi.turnThruOff();
@@ -178,4 +178,9 @@ void midi_BleDisconnectedHandler()
 	ESP_LOGI(MIDI_TAG, "BLE MIDI disconnected");
 	bleConnected = 0;
 	newBleEvent = 1;
+}
+
+void midi_SendDeviceApiSysExString(const char* array, unsigned size, uint8_t containsFraming)
+{
+	
 }

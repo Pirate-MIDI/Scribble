@@ -1,12 +1,19 @@
 #include <Arduino.h>
-#include "hardware_Def.h"
-#include "esp32_Settings.h"
+#include "hardware_def.h"
+#include "esp32_settings.h"
 #include "main.h"
 #include "display.h"
-#include "midi_Handling.h"
-#include "task_Priorities.h"
+#include "midi_handling.h"
+#include "task_priorities.h"
+#include "esp_system.h"
+#include "soc/rtc_cntl_reg.h"
+#include "MIDI.h"
+#include "device_api.h"
+#include "USB.h"
 
 static const char* MAIN_TAG = "MAIN";
+
+char deviceApiBuffer[8192];
 
 uint8_t wifiState = WIFI_STATE_NOT_CONNECTED;
 float currentBpm = 120.0;
@@ -17,11 +24,17 @@ void defaultGlobalSettingsAssignment();
 void defaultPresetsAssignment();
 
 void indicatorTask(void* parameter);
+void deviceApiTask(void* parameter);
+
+//HWCDC USBSerial;
 
 void setup()
 {
 	//Serial0.begin(115200);
-	Serial.begin(115200);
+	//esp_log_set_vprintf(&vprintf); // Default is already UART0
+	delay(2000);
+	//USBSerial.begin(115200);
+	//USBSerial.print("Starting Scribble Firmware...\n");
 	ESP_LOGI("MAIN", "Starting setup...");
 	
 	// Assign global and preset settings and boot the file system
@@ -33,21 +46,48 @@ void setup()
 	BaseType_t taskResult;
 	taskResult = xTaskCreatePinnedToCore(
 		indicatorTask, // Task function. 
-		"LED Task", // name of task. 
+		"Inidactor Task", // name of task. 
 		5000, // Stack size of task 
 		NULL, // parameter of the task 
-		LED_TASK_PRIORITY, // priority of the task 
+		INDICATOR_TASK_PRIORITY, // priority of the task 
+		NULL, // Task handle to keep track of created task 
+		1); // pin task to core 1 
+	ESP_LOGI(MAIN_TAG, "LED task created: %d", taskResult);
+
+	taskResult = xTaskCreatePinnedToCore(
+		deviceApiTask, // Task function. 
+		"Device API Task", // name of task. 
+		20000, // Stack size of task 
+		NULL, // parameter of the task 
+		DEVICE_API_TASK_PRIORITY, // priority of the task 
 		NULL, // Task handle to keep track of created task 
 		1); // pin task to core 1 
 	ESP_LOGI(MAIN_TAG, "LED task created: %d", taskResult);
 
 	midi_Init();
 	display_Init();
+	ESP_LOGI("MAIN", "Free flash: %u bytes\n", ESP.getFreeSketchSpace());
 }
 
 void loop()
 {
 	midi_ReadAll();
+	if(Serial.available())
+	{
+		ESP_LOGI(MAIN_TAG, "Received command from Serial");
+		deviceApi_Handler(deviceApiBuffer, 0);
+	}
+	//delay(10);		
+}
+
+void deviceApiTask(void* parameter)
+{
+	ESP_LOGI(MAIN_TAG, "Device API task started");
+	while(1)
+	{		
+		
+		vTaskDelay(10 / portTICK_PERIOD_MS); // Prevent busy-waiting
+	}
 }
 
 
@@ -68,17 +108,17 @@ void defaultGlobalSettingsAssignment()
 	globalSettings.globalBpm = 120.0; 					// Default global BPM
 	globalSettings.midiOutMode = MIDI_OUT_TYPE_A; 	// Type A MIDI output by default
 	// TRS MIDI thru flags
-	globalSettings.midiThruFlags[MIDI_TRS][MIDI_TRS] = 1;
-	globalSettings.midiThruFlags[MIDI_TRS][MIDI_BLE] = 1;
-	globalSettings.midiThruFlags[MIDI_TRS][MIDI_WIFI] = 1;
+	globalSettings.midiTrsThruHandles[MIDI_TRS] = 1;
+	globalSettings.midiTrsThruHandles[MIDI_BLE] = 1;
+	globalSettings.midiTrsThruHandles[MIDI_WIFI] = 1;
 	// BLE MIDI thru flags
-	globalSettings.midiThruFlags[MIDI_BLE][MIDI_TRS] = 1;
-	globalSettings.midiThruFlags[MIDI_BLE][MIDI_BLE] = 1;
-	globalSettings.midiThruFlags[MIDI_BLE][MIDI_WIFI] = 1;
+	globalSettings.midiBleThruHandles[MIDI_TRS] = 1;
+	globalSettings.midiBleThruHandles[MIDI_BLE] = 1;
+	globalSettings.midiBleThruHandles[MIDI_WIFI] = 1;
 	// WiFi MIDI thru flags
-	globalSettings.midiThruFlags[MIDI_WIFI][MIDI_TRS] = 1;
-	globalSettings.midiThruFlags[MIDI_WIFI][MIDI_BLE] = 1;
-	globalSettings.midiThruFlags[MIDI_WIFI][MIDI_WIFI] = 1;
+	globalSettings.midiWifiThruHandles[MIDI_TRS] = 1;
+	globalSettings.midiWifiThruHandles[MIDI_BLE] = 1;
+	globalSettings.midiWifiThruHandles[MIDI_WIFI] = 1;
 }
 
 void defaultPresetsAssignment()
@@ -158,95 +198,45 @@ void midi_ClockHandler()
 
 }
 
+void presetUp()
+{
+
+}
+
+void presetDown()
+{
+
+}
+
+void goToPreset(uint16_t presetIndex)
+{
+
+}
+
+void savePresets()
+{
+
+}
+
+void enterBootloader()
+{
+	//wifi_Disconnect();
+	REG_WRITE(RTC_CNTL_OPTION1_REG, RTC_CNTL_FORCE_DOWNLOAD_BOOT);
+	esp_restart();
+}
+
+void factoryReset()
+{
+
+}
+
+
 void indicatorTask(void* parameter)
 {
 	static uint16_t ledBreathingIndex = 0;
 	static uint16_t ledBlinkingIndex = 0;
 	while(1)
 	{
-		/*
-		// Displaying wireless status information
-				// WiFi  feedback
-					// If in AP mode for the WiFi configuration portal, rapid breathing alt colour
-					if(esp32Info.wifiConnected == 3)
-					{
-						// Breathing LED effect
-						ledBreathingIndex += 8;
-						if(ledBreathingIndex >= 256)
-						{
-							ledBreathingIndex = 0;
-						}
-
-
-						uint32_t breathingColour = pixel_ScaleColour(WIFI_CONFIG_COLOUR, sineTable[ledBreathingIndex]);
-						leds.setPixelColor(i, breathingColour);
-						leds.show();
-					}
-					// If connected to WiFi with internet access, breathing 
-					else if(esp32Info.wifiConnected == 2)
-					{
-						// Breathing LED effect
-						ledBreathingIndex += 2;
-						if(ledBreathingIndex >= 256)
-						{
-							ledBreathingIndex = 0;
-						}
-
-
-						uint32_t breathingColour = pixel_ScaleColour(WIFI_CONNECTED_NET_COLOUR, sineTable[ledBreathingIndex]);
-						leds.setPixelColor(i, breathingColour);
-						leds.show();
-					}
-					// If connected to WiFi without internet access, blinking
-					else if(esp32Info.wifiConnected == 1)
-					{
-						// Blinking LED effect
-						ledBlinkingIndex += 2;
-						if(ledBlinkingIndex >= 256)
-						{
-							ledBlinkingIndex = 0;
-						}
-						if(ledBlinkingIndex >= 127)
-							leds.setPixelColor(i, WIFI_CONNECTED_NET_COLOUR);
-						else
-							leds.setPixelColor(i, 0x000000);
-						leds.show();
-					}
-					// In WiFi mode but not connected to a network, solid red
-					else if(esp32Info.wifiConnected == 0)
-					{
-						leds.setPixelColor(i, LED_NOT_CONNECTED_COLOUR);
-						leds.show();
-					}
-
-				
-				// BLE feedback
-					// If connected to client (in server mode), breathing
-					if(esp32Info.bleConnected == 1)
-					{
-						// Breathing LED effect
-						ledBreathingIndex += 2;
-						if(ledBreathingIndex >= 256)
-						{
-							ledBreathingIndex = 0;
-						}
-						uint32_t breathingColour = 0;
-						if(esp32ConfigPtr->bleMode == Esp32BLEClient)
-							breathingColour = pixel_ScaleColour(BLE_CLIENT_CONNECTED_COLOUR, sineTable[ledBreathingIndex]);
-
-						else if(esp32ConfigPtr->bleMode == Esp32BLEServer)
-							breathingColour = pixel_ScaleColour(BLE_SERVER_CONNECTED_COLOUR, sineTable[ledBreathingIndex]);
-
-						leds.setPixelColor(i, breathingColour);
-						leds.show();
-					}
-					// If not connected to a BLE client or server, solid red
-					else if(esp32Info.bleConnected == 0)
-					{
-						leds.setPixelColor(i, LED_NOT_CONNECTED_COLOUR);
-						leds.show();
-					}
-					*/
 		if(bleMidiReceived)
 		{
 			display_DrawMidiIndicator(true);

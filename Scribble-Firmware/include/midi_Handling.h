@@ -1,7 +1,7 @@
 #ifndef MIDI_HANDLING_H
 #define MIDI_HANDLING_H
 
-#include "MIDI.h"
+#include "stdint.h"
 
 // MIDI map
 #define PRESET_UP_CC				0x01
@@ -12,6 +12,7 @@ void midi_Init();
 void midi_InitWiFiRTP();
 
 void midi_ReadAll();
+void midi_SendDeviceApiSysExString(const char* array, unsigned size, uint8_t containsFraming);
 
 extern uint8_t bleConnected;
 extern uint8_t newBleEvent;
