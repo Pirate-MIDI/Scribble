@@ -19,8 +19,9 @@
 #define BPM_X_OFFSET					10
 #define BPM_Y_OFFSET					35
 
-#define PRESET_NAME_X_OFFSET		10
-#define PRESET_NAME_Y_OFFSET		120
+#define PRESET_NAME_X_OFFSET			10
+#define PRESET_NAME_Y_OFFSET			120
+#define PRESET_NAME_Y_LARGE_OFFSET	100
 
 #define CIRCLE_INDICATOR_SIZE			14
 #define CIRCLE_INDIACTOR_X_OFFSET	8
@@ -39,7 +40,8 @@
 void display_Init();
 void display_DrawMainScreen();
 void display_DrawPresetNumber(uint16_t	 presetNumber);
-
+void display_DrawBpm(float value);
+void display_DrawMainText(const char* text, const char* secondaryText);
 void display_DrawMidiIndicator(bool active);
 void display_DrawWirelessIndicator(uint8_t type, uint8_t state);
 

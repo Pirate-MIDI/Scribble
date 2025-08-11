@@ -71,6 +71,7 @@ typedef struct
 } Preset;
 
 extern uint8_t wifiState;			 // 0 = not connected, 1 = connected, 2 = AP
+extern int8_t wifiRssi;
 extern float currentBpm;
 extern GlobalSettings globalSettings;
 extern Preset presets[];

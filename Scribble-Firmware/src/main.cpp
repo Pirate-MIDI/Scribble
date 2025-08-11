@@ -9,13 +9,13 @@
 #include "soc/rtc_cntl_reg.h"
 #include "MIDI.h"
 #include "device_api.h"
-#include "USB.h"
 
 static const char* MAIN_TAG = "MAIN";
 
 char deviceApiBuffer[8192];
 
 uint8_t wifiState = WIFI_STATE_NOT_CONNECTED;
+int8_t wifiRssi;
 float currentBpm = 120.0;
 GlobalSettings globalSettings;
 Preset presets[NUM_PRESETS];
@@ -30,11 +30,7 @@ void deviceApiTask(void* parameter);
 
 void setup()
 {
-	//Serial0.begin(115200);
-	//esp_log_set_vprintf(&vprintf); // Default is already UART0
-	delay(2000);
-	//USBSerial.begin(115200);
-	//USBSerial.print("Starting Scribble Firmware...\n");
+	Serial.begin(115200);
 	ESP_LOGI("MAIN", "Starting setup...");
 	
 	// Assign global and preset settings and boot the file system
@@ -66,28 +62,24 @@ void setup()
 
 	midi_Init();
 	display_Init();
-	ESP_LOGI("MAIN", "Free flash: %u bytes\n", ESP.getFreeSketchSpace());
+
+	if(globalSettings.wirelessType == WIRELESS_MODE_WIFI)
+	{
+		// Start WiFi connection
+		//wifi_Connect(WIFI_HOSTNAME, WIFI_AP_SSID, NULL);
+		if(wifiState == WIFI_STATE_CONNECTED)
+		{
+			// Start the WiFi RTP MIDI
+			//midi_InitWiFiRTP();
+		}
+	}
 }
 
 void loop()
 {
 	midi_ReadAll();
-	if(Serial.available())
-	{
-		ESP_LOGI(MAIN_TAG, "Received command from Serial");
-		deviceApi_Handler(deviceApiBuffer, 0);
-	}
+	
 	//delay(10);		
-}
-
-void deviceApiTask(void* parameter)
-{
-	ESP_LOGI(MAIN_TAG, "Device API task started");
-	while(1)
-	{		
-		
-		vTaskDelay(10 / portTICK_PERIOD_MS); // Prevent busy-waiting
-	}
 }
 
 
@@ -213,11 +205,6 @@ void goToPreset(uint16_t presetIndex)
 
 }
 
-void savePresets()
-{
-
-}
-
 void enterBootloader()
 {
 	//wifi_Disconnect();
@@ -230,6 +217,17 @@ void factoryReset()
 
 }
 
+void deviceApiTask(void* parameter)
+{
+	ESP_LOGI(MAIN_TAG, "Device API task started");
+	while(1)
+	{		
+		if(Serial.available())
+		{
+			deviceApi_Handler(deviceApiBuffer, 0);
+		}
+	}
+}
 
 void indicatorTask(void* parameter)
 {

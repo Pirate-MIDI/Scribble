@@ -7,6 +7,8 @@
 #include "midi_handling.h"
 #include "main.h"
 #include "esp_log.h"
+#include "esp32_settings.h"
+
 
 // Transmit functions
 void sendCheckResponse(uint8_t transport)
@@ -307,7 +309,8 @@ void ctrlCommandHandler(char* appData, uint8_t transport)
 				}
 				else if(strcmp(command, "savePresets") == 0)
 				{
-					savePresets();
+					esp32Setting_SavePresets();
+					//savePresets();
 				}
 #ifdef USE_BLE_MIDI				
 				else if(strcmp(command, "turnOffBLE") == 0)
@@ -318,32 +321,7 @@ void ctrlCommandHandler(char* appData, uint8_t transport)
 				{
 					turnOnBLE();
 				}
-#endif
-
-#ifdef USE_WIFI_RTP_MIDI
-				else if(strcmp(command, "turnOnWifi") == 0)
-				{
-					wifi_Connect(WIFI_HOSTNAME, WIFI_AP_SSID, NULL);
-				}
-				else if(strcmp(command, "turnOffWifi") == 0)
-				{
-					wifi_Disconnect();
-				}
-				else if(strcmp(command, "resetWifiCredentials") == 0)
-				{
-					wifi_ResetSettings();
-				}
-				else if(strcmp(command, "checkFirmwareUpdate") == 0)
-				{
-					ESP32OTAPull ota;
-					const char url[] = "https://raw.githubusercontent.com/Pirate-MIDI/Spin/refs/heads/main/Firmware/ota_configuration.json";
-					Serial0.println(ota.CheckForOTAUpdate(OTA_INFO_URL, "0.1.0", ota.DONT_DO_UPDATE));
-				}
-				else if(strcmp(command, "checkLatestFirmwareVersion") == 0)
-				{
-					Serial.println(ota_GetLatestVersion(OTA_INFO_URL));
-				}
-#endif				
+#endif		
 				
 				else if(strcmp(command, USB_FACTORY_RESET_STRING) == 0)
 				{

@@ -13,4 +13,9 @@ void esp32Settings_SoftwareReset();
 void esp32Settings_AssignDefaultGlobalSettings(void (*fptr)());
 void esp32Settings_AssignDefaultPresetSettings(void (*fptr)());
 
+void esp32Setting_ReadGlobalSettings();
+void esp32Setting_SaveGlobalSettings();
+void esp32Setting_ReadPresets();
+void esp32Setting_SavePresets();
+
 #endif // ESP32_SETTINGS_H

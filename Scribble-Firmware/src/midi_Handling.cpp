@@ -6,9 +6,9 @@
 #include <AppleMIDI.h>
 #include <WiFi.h>
 // General application
-#include "midi_Handling.h"
+#include "midi_handling.h"
 #include "main.h"
-#include "hardware_Def.h"
+#include "hardware_def.h"
 
 static const char* MIDI_TAG = "MIDI";
 
@@ -94,7 +94,10 @@ void midi_Init()
 
 	// Initialize MIDI interfaces
 	trsMidi.begin(globalSettings.midiChannel);
-	blueMidi.begin(globalSettings.midiChannel);
+	if(globalSettings.wirelessType == WIRELESS_MODE_BLE)
+	{
+		blueMidi.begin(globalSettings.midiChannel);
+	}
 }
 
 // Because WiFi RTP MIDI requires a network connection, it is initialised separately

@@ -17,12 +17,6 @@ uint16_t presetSize = 0;
 void (*assignDefaultGlobalSettings)() = nullptr;
 void (*assignDefaultPresetSettings)() = nullptr;
 
-
-void esp32Setting_ReadGlobalSettings();
-void esp32Setting_SaveGlobalSettings();
-void esp32Setting_ReadPresets();
-void esp32Setting_SavePresets();
-
 void esp32Settings_ListDir(fs::FS &fs, const char *dirname, uint8_t levels);
 
 // Checks for the standard combination of a global settings file and a presets file
