@@ -14,8 +14,7 @@ static const char* MAIN_TAG = "MAIN";
 
 char deviceApiBuffer[8192];
 
-uint8_t wifiState = WIFI_STATE_NOT_CONNECTED;
-int8_t wifiRssi;
+int8_t bleRssi;
 float currentBpm = 120.0;
 GlobalSettings globalSettings;
 Preset presets[NUM_PRESETS];
@@ -31,6 +30,7 @@ void deviceApiTask(void* parameter);
 void setup()
 {
 	Serial.begin(115200);
+	Serial.setRxBufferSize(8192);
 	ESP_LOGI("MAIN", "Starting setup...");
 	
 	// Assign global and preset settings and boot the file system
@@ -42,37 +42,26 @@ void setup()
 	BaseType_t taskResult;
 	taskResult = xTaskCreatePinnedToCore(
 		indicatorTask, // Task function. 
-		"Inidactor Task", // name of task. 
+		"Inicator Task", // name of task. 
 		5000, // Stack size of task 
 		NULL, // parameter of the task 
 		INDICATOR_TASK_PRIORITY, // priority of the task 
 		NULL, // Task handle to keep track of created task 
 		1); // pin task to core 1 
-	ESP_LOGI(MAIN_TAG, "LED task created: %d", taskResult);
+	ESP_LOGI(MAIN_TAG, "Indicator task created: %d", taskResult);
 
 	taskResult = xTaskCreatePinnedToCore(
 		deviceApiTask, // Task function. 
 		"Device API Task", // name of task. 
-		20000, // Stack size of task 
+		70000, // Stack size of task 
 		NULL, // parameter of the task 
 		DEVICE_API_TASK_PRIORITY, // priority of the task 
 		NULL, // Task handle to keep track of created task 
 		1); // pin task to core 1 
-	ESP_LOGI(MAIN_TAG, "LED task created: %d", taskResult);
+	ESP_LOGI(MAIN_TAG, "Device API task created: %d", taskResult);
 
 	midi_Init();
 	display_Init();
-
-	if(globalSettings.wirelessType == WIRELESS_MODE_WIFI)
-	{
-		// Start WiFi connection
-		//wifi_Connect(WIFI_HOSTNAME, WIFI_AP_SSID, NULL);
-		if(wifiState == WIFI_STATE_CONNECTED)
-		{
-			// Start the WiFi RTP MIDI
-			//midi_InitWiFiRTP();
-		}
-	}
 }
 
 void loop()
@@ -92,25 +81,20 @@ void defaultGlobalSettingsAssignment()
 	// UI settings
 	globalSettings.uiLightMode = 0; 						// Auto dark mode
 	globalSettings.mainColour = GEN_LOSS_BLUE;
-	globalSettings.useLargePresetFont = 0;				// Use small text by default
 
 	// MIDI settings
 	globalSettings.midiChannel = MIDI_CHANNEL_OMNI; // Default MIDI channel
-	globalSettings.clockMode = 0; 						// Use preset BPM by default
+	globalSettings.clockMode = MIDI_CLOCK_EXTERNAL; 						// Use preset BPM by default
 	globalSettings.globalBpm = 120.0; 					// Default global BPM
 	globalSettings.midiOutMode = MIDI_OUT_TYPE_A; 	// Type A MIDI output by default
 	// TRS MIDI thru flags
 	globalSettings.midiTrsThruHandles[MIDI_TRS] = 1;
 	globalSettings.midiTrsThruHandles[MIDI_BLE] = 1;
-	globalSettings.midiTrsThruHandles[MIDI_WIFI] = 1;
 	// BLE MIDI thru flags
 	globalSettings.midiBleThruHandles[MIDI_TRS] = 1;
 	globalSettings.midiBleThruHandles[MIDI_BLE] = 1;
-	globalSettings.midiBleThruHandles[MIDI_WIFI] = 1;
-	// WiFi MIDI thru flags
-	globalSettings.midiWifiThruHandles[MIDI_TRS] = 1;
-	globalSettings.midiWifiThruHandles[MIDI_BLE] = 1;
-	globalSettings.midiWifiThruHandles[MIDI_WIFI] = 1;
+
+	globalSettings.wirelessType = WIRELESS_MODE_BLE;
 }
 
 void defaultPresetsAssignment()
@@ -118,11 +102,14 @@ void defaultPresetsAssignment()
 	for (int i = 0; i < NUM_PRESETS; i++)
 	{
 		char str[64];
-		sprintf(str, presets[i].name, "Preset %d", i + 1);
-		sprintf(str, presets[i].secondaryText, "Secondary %d", i + 1);
+		sprintf(presets[i].name, "Preset %d", i + 1);
+		//strcpy(presets[i].name, str);
+		sprintf(presets[i].secondaryText, "Secondary %d", i + 1);
+		//strcpy(presets[i].secondaryText, str);
 		presets[i].colourOverrideFlag = 0; // Use main colour by default
 		presets[i].colourOverride = GEN_LOSS_BLUE; // Default colour
 		presets[i].bpm = 120.0; // Set default BPM
+		ESP_LOGI(MAIN_TAG, "Preset %d: %s", i, presets[i].name);
 	}
 }
 
@@ -134,50 +121,28 @@ void midi_ControlChangeHandler(byte channel, byte number, byte value)
 		switch(number)
 		{
 			case PRESET_UP_CC:
-				// Increment preset index
-				if(globalSettings.currentPreset < NUM_PRESETS - 1)
-				{
-					globalSettings.currentPreset++;
-				}
-				// Wrap around to the first preset
-				else
-				{
-					globalSettings.currentPreset = 0;
-				}
+				presetUp();
 				break;
 			case PRESET_DOWN_CC:
-				// Decrement preset index
-				if(globalSettings.currentPreset > 0)
-				{
-					globalSettings.currentPreset--;
-				}
-				// Wrap around to the last preset
-				else
-				{
-					globalSettings.currentPreset = NUM_PRESETS - 1;
-				}
+				presetDown();
 				break;
 			case PRESET_SELECT_CC:
-				if(value < NUM_PRESETS)
-				{
-					globalSettings.currentPreset = value;
-				}
+				goToPreset(value);
 				break;
 			default:
 				break;
 		}
 	}
+	midiReceived = 1;
 }
 
 void midi_ProgramChangeHandler(byte channel, byte number)
 {
-	if(number >= NUM_PRESETS)
+	if(channel	== globalSettings.midiChannel || globalSettings.midiChannel == MIDI_CHANNEL_OMNI)
 	{
-		ESP_LOGE(MAIN_TAG, "Invalid program change number: %d", number);
-		return;
+		goToPreset(number);	
 	}
-	globalSettings.currentPreset = number;
-	display_DrawPresetNumber(globalSettings.currentPreset);
+	midiReceived = 1;
 }
 
 void midi_SysExHandler(byte* data, unsigned length)
@@ -185,24 +150,49 @@ void midi_SysExHandler(byte* data, unsigned length)
 
 }
 
-void midi_ClockHandler()
-{
-
-}
-
 void presetUp()
 {
-
+	// Increment preset index
+	if(globalSettings.currentPreset < NUM_PRESETS - 1)
+	{
+		globalSettings.currentPreset++;
+	}
+	// Wrap around to the first preset
+	else
+	{
+		globalSettings.currentPreset = 0;
+	}
+	display_DrawPresetNumber(globalSettings.currentPreset);
+	display_DrawMainText(presets[globalSettings.currentPreset].name, presets[globalSettings.currentPreset].secondaryText);
+	midi_SetTempo();
 }
 
 void presetDown()
 {
-
+	// Decrement preset index
+	if(globalSettings.currentPreset > 0)
+	{
+		globalSettings.currentPreset--;
+	}
+	// Wrap around to the last preset
+	else
+	{
+		globalSettings.currentPreset = NUM_PRESETS - 1;
+	}
+	display_DrawPresetNumber(globalSettings.currentPreset);
+	display_DrawMainText(presets[globalSettings.currentPreset].name, presets[globalSettings.currentPreset].secondaryText);
+	midi_SetTempo();
 }
 
 void goToPreset(uint16_t presetIndex)
 {
-
+	if(presetIndex < NUM_PRESETS)
+	{
+		globalSettings.currentPreset = presetIndex;
+	}
+	display_DrawPresetNumber(globalSettings.currentPreset);
+	display_DrawMainText(presets[globalSettings.currentPreset].name, presets[globalSettings.currentPreset].secondaryText);
+	midi_SetTempo();
 }
 
 void enterBootloader()
@@ -214,7 +204,7 @@ void enterBootloader()
 
 void factoryReset()
 {
-
+	esp32Settings_ResetAllSettings();
 }
 
 void deviceApiTask(void* parameter)
@@ -226,22 +216,23 @@ void deviceApiTask(void* parameter)
 		{
 			deviceApi_Handler(deviceApiBuffer, 0);
 		}
+		vTaskDelay(2 / portTICK_PERIOD_MS);
 	}
 }
 
 void indicatorTask(void* parameter)
 {
-	static uint16_t ledBreathingIndex = 0;
-	static uint16_t ledBlinkingIndex = 0;
 	while(1)
 	{
-		if(bleMidiReceived)
+		// New MIDI input
+		if(midiReceived)
 		{
 			display_DrawMidiIndicator(true);
 			vTaskDelay(MIDI_INDICATOR_ON_TIME / portTICK_PERIOD_MS);
 			display_DrawMidiIndicator(false);
-			bleMidiReceived = 0;
+			midiReceived = 0;
 		}
+		// New BLE event
 		if(newBleEvent)
 		{
 			if(bleConnected)
@@ -254,7 +245,41 @@ void indicatorTask(void* parameter)
 			}
 			newBleEvent = 0;
 		}
+		// New MIDI clock event
+		if(newClockEvent)
+		{
+			if(globalSettings.clockMode == MIDI_CLOCK_EXTERNAL)
+			{
+				switch(newClockEvent)
+				{
+					case MIDI_CLOCK_EVENT_CHANGE:
+						// The tempo has changed; update the display with new bpm
+						display_DrawBpm(currentBpm);
+					break;
+
+					case MIDI_CLOCK_EVENT_START:
+						// Set the BPM colour to green
+						display_SetBpmDrawColour(CLOCK_START_COLOUR); 
+						display_DrawBpm(currentBpm);
+					break;
+
+					case MIDI_CLOCK_EVENT_STOP:
+						// Set the BPM colour to green
+						display_SetBpmDrawColour(CLOCK_STOP_COLOUR); 
+						display_DrawBpm(currentBpm);
+					break;
+
+					newClockEvent = MIDI_CLOCK_EVENT_CLEAR;
+				}
+			}
+			else if(	globalSettings.clockMode == MIDI_CLOCK_PRESET ||
+						globalSettings.clockMode == MIDI_CLOCK_GLOBAL)
+			{
+				// TODO: is a clock tempo indicator needed considering most pedals have them already?
+				// Might not be worth adding to avoid confusion
+			}
+		}
 				
-		vTaskDelay(50 / portTICK_PERIOD_MS);
+		vTaskDelay(20 / portTICK_PERIOD_MS);
 	}
 }

@@ -57,22 +57,14 @@ void sendGlobalSettings(uint8_t transport)
 		doc["lightMode"] = "auto";
 
 	doc["mainColour"] = globalSettings.mainColour;
-	doc["useLargePresetFont"] = (bool)globalSettings.useLargePresetFont;
 
 	// MIDI TRS thru handles
 	doc[USB_MIDI1_THRU_HANDLES_STRING][USB_MIDI1_STRING] = (bool)globalSettings.midiTrsThruHandles[MIDI_TRS];
 	doc[USB_MIDI1_THRU_HANDLES_STRING][USB_BLE_STRING] = (bool)globalSettings.midiTrsThruHandles[MIDI_BLE];
-	doc[USB_MIDI1_THRU_HANDLES_STRING][USB_WIFI_STRING] = (bool)globalSettings.midiTrsThruHandles[MIDI_WIFI];
 
 	// BLE thru handles
 	doc[USB_BLE_THRU_HANDLES_STRING][USB_MIDI1_STRING] = (bool)globalSettings.midiBleThruHandles[MIDI_TRS];
 	doc[USB_BLE_THRU_HANDLES_STRING][USB_BLE_STRING] = (bool)globalSettings.midiBleThruHandles[MIDI_BLE];
-	doc[USB_BLE_THRU_HANDLES_STRING][USB_WIFI_STRING] = (bool)globalSettings.midiBleThruHandles[MIDI_WIFI];
-
-	// WiFi thru handles
-	doc[USB_WIFI_THRU_HANDLES_STRING][USB_MIDI1_STRING] = (bool)globalSettings.midiWifiThruHandles[MIDI_TRS];
-	doc[USB_WIFI_THRU_HANDLES_STRING][USB_BLE_STRING] = (bool)globalSettings.midiWifiThruHandles[MIDI_BLE];
-	doc[USB_WIFI_THRU_HANDLES_STRING][USB_WIFI_STRING] = (bool)globalSettings.midiWifiThruHandles[MIDI_WIFI];
 
 	// MIDI channels
 	doc[USB_MIDI_CHANNEL_STRING] = globalSettings.midiChannel;
@@ -93,10 +85,8 @@ void sendGlobalSettings(uint8_t transport)
 	else if(globalSettings.midiOutMode == MIDI_OUT_TYPE_B)
 		doc["midiOutPortMode"] = "midiOutB";
 
-	// ESP32 Manager config
-	if(globalSettings.wirelessType == WIRELESS_MODE_WIFI)
-		doc["wirelessType"] = "wifi";
-	else if(globalSettings.wirelessType == WIRELESS_MODE_BLE)
+	// Wireless config
+	if(globalSettings.wirelessType == WIRELESS_MODE_BLE)
 		doc["wirelessType"] = "ble";
 	else
 		doc["wirelessType"] = "none";
@@ -180,6 +170,7 @@ void parseGlobalSettings(char* appData, uint8_t transport)
 	if(error)
 	{
 		Serial.printf("deserializeJson() failed: %s\n", error.c_str());
+		Serial.write(appData	, strlen(appData));
 		return;
 	}
 
@@ -197,22 +188,14 @@ void parseGlobalSettings(char* appData, uint8_t transport)
 
 	globalSettings.pedalModel = doc["pedalModel"];
 	globalSettings.mainColour = doc["mainColour"];
-	globalSettings.useLargePresetFont = (bool)doc["useLargePresetFont"];;
 
 	// MIDI 1 thru handles
 	globalSettings.midiTrsThruHandles[MIDI_TRS] = (uint8_t)doc[USB_MIDI1_THRU_HANDLES_STRING][USB_MIDI1_STRING];
 	globalSettings.midiTrsThruHandles[MIDI_BLE] = (uint8_t)doc[USB_MIDI1_THRU_HANDLES_STRING][USB_BLE_STRING];
-	globalSettings.midiTrsThruHandles[MIDI_WIFI] = (uint8_t)doc[USB_MIDI1_THRU_HANDLES_STRING][USB_WIFI_STRING];
 
 	// BLE thru handles
 	globalSettings.midiBleThruHandles[MIDI_TRS] = (uint8_t)doc[USB_BLE_THRU_HANDLES_STRING][USB_MIDI1_STRING];
 	globalSettings.midiBleThruHandles[MIDI_BLE] = (uint8_t)doc[USB_BLE_THRU_HANDLES_STRING][USB_BLE_STRING];
-	globalSettings.midiBleThruHandles[MIDI_WIFI] = (uint8_t)doc[USB_BLE_THRU_HANDLES_STRING][USB_WIFI_STRING];
-
-	// WiFi thru handles
-	globalSettings.midiWifiThruHandles[MIDI_TRS] = (uint8_t)doc[USB_WIFI_THRU_HANDLES_STRING][USB_MIDI1_STRING];
-	globalSettings.midiWifiThruHandles[MIDI_BLE] = (uint8_t)doc[USB_WIFI_THRU_HANDLES_STRING][USB_BLE_STRING];
-	globalSettings.midiWifiThruHandles[MIDI_WIFI] = (uint8_t)doc[USB_WIFI_THRU_HANDLES_STRING][USB_WIFI_STRING];
 
 
 	// MIDI channels
@@ -226,19 +209,16 @@ void parseGlobalSettings(char* appData, uint8_t transport)
 
 
 	// ESP32 Manager config
-	if(strcmp(doc["wirelessType"], "wifi") == 0)
-		globalSettings.wirelessType = WIRELESS_MODE_WIFI;
-	else if(strcmp(doc["wirelessType"], "ble") == 0)
+	if(strcmp(doc["wirelessType"], "ble") == 0)
 	{
-		// If the device is switching from a WiFi configuration, disable the WiFi and reset the settings
-		if(globalSettings.wirelessType == WIRELESS_MODE_WIFI)
-		{
-			//wifi_Disconnect();
-		}
 		globalSettings.wirelessType = WIRELESS_MODE_BLE;
 	}
 	else
+	{
 		globalSettings.wirelessType = WIRELESS_MODE_NONE;
+	}
+
+	esp32Settings_SaveGlobalSettings();
 }
 
 void parseBankSettings(char* appData, uint16_t bankNum, uint8_t transport)
@@ -309,7 +289,7 @@ void ctrlCommandHandler(char* appData, uint8_t transport)
 				}
 				else if(strcmp(command, "savePresets") == 0)
 				{
-					esp32Setting_SavePresets();
+					esp32Settings_SavePresets();
 					//savePresets();
 				}
 #ifdef USE_BLE_MIDI				

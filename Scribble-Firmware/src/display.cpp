@@ -8,6 +8,8 @@ static const char* DISPLAY_TAG = "DISPLAY";
 
 Adafruit_ST7789 lcd = Adafruit_ST7789(LCD_CS_PIN, LCD_DC_PIN, LCD_RST_PIN);
 
+uint16_t clockTempoColour = ST77XX_WHITE; // Default clock tempo colour
+
 void display_Init()
 {
 	SPI.begin(SPI_SCK_PIN, -1, SPI_MOSI_PIN, -1);
@@ -21,7 +23,6 @@ void display_DrawMainScreen()
 	
 
 	// Draw main colour boxes
-	lcd.fillRect(0, LCD_HEIGHT-MAIN_FILL_HEIGHT, 320, MAIN_FILL_HEIGHT, GEN_LOSS_BLUE);
 	lcd.fillRect(0, 0, 320, LCD_HEIGHT-MAIN_FILL_HEIGHT, ST77XX_BLACK);
 
 	// Draw info bar
@@ -37,9 +38,7 @@ void display_DrawMainScreen()
 	display_DrawMidiIndicator(false);	// WiFi
 
 	// Draw main text
-	char testPresetName[] = {"Preset 1\n"};
-	char testSecondaryText[] {"Secondary"};
-	display_DrawMainText(testPresetName, testSecondaryText);
+	display_DrawMainText(presets[globalSettings.currentPreset].name, presets[globalSettings.currentPreset].secondaryText);
 	
 }
 
@@ -62,42 +61,51 @@ void display_DrawBpm(float value)
 {
 	lcd.fillRect(BPM_X_OFFSET, 0, 100, INFO_BAR_HEIGHT, ST77XX_BLACK);
 	lcd.setFont(&BPM_FONT);
-	lcd.setTextColor(ST77XX_WHITE);
+	lcd.setTextColor(clockTempoColour);
 	lcd.setCursor(BPM_X_OFFSET, BPM_Y_OFFSET);
 	char bpmString[6];
 	sprintf(bpmString, "%.1f", value);
 	lcd.print(bpmString);
 }
 
+void display_SetBpmDrawColour(uint16_t colour)
+{
+	clockTempoColour = colour;
+}
+
 void display_DrawMainText(const char* text, const char* secondaryText)
 {
 	int16_t  x1, y1;
 	uint16_t w, h;
+	int16_t yOffset;
+	lcd.fillRect(0, LCD_HEIGHT-MAIN_FILL_HEIGHT, 320, MAIN_FILL_HEIGHT, GEN_LOSS_BLUE);
 	lcd.setTextColor(ST77XX_WHITE);
 	// Draw main text
 	if(text != NULL)
 	{
-		if(globalSettings.useLargePresetFont)
-		{
-			lcd.setFont(&LARGE_PRESET_FONT);
-			lcd.setCursor(PRESET_NAME_X_OFFSET, PRESET_NAME_Y_OFFSET);
-			lcd.getTextBounds(text, PRESET_NAME_X_OFFSET, PRESET_NAME_Y_OFFSET, &x1, &y1, &w, &h);
-			lcd.setCursor(LCD_WIDTH/2 - w/2, PRESET_NAME_Y_OFFSET);
-			lcd.print(text);
-		}
+		// If no secondary text is used, centre the main text
+		if(secondaryText == NULL)
+			yOffset = PRESET_NAME_Y_CENTRE_OFFSET;
+
 		else
-		{
-			lcd.setFont(&PRESET_NAME_FONT);
-			lcd.setCursor(PRESET_NAME_X_OFFSET, PRESET_NAME_Y_LARGE_OFFSET);
-			lcd.getTextBounds(text, PRESET_NAME_X_OFFSET, PRESET_NAME_Y_LARGE_OFFSET, &x1, &y1, &w, &h);
-			lcd.setCursor(LCD_WIDTH/2 - w/2, PRESET_NAME_Y_LARGE_OFFSET);
-			lcd.print(text);
-		}
+			yOffset = PRESET_NAME_Y_TOP_OFFSET;
+
+		lcd.setFont(&PRESET_NAME_FONT);
+		lcd.setCursor(PRESET_NAME_X_OFFSET, yOffset);
+		lcd.getTextBounds(text, PRESET_NAME_X_OFFSET, yOffset, &x1, &y1, &w, &h);
+		lcd.setCursor(LCD_WIDTH/2 - w/2, yOffset);
+		lcd.print(text);
 	}
-	
-	
-	
-	
+	// Draw secondary text if available
+	if(secondaryText != NULL)
+	{
+		yOffset = PRESET_NAME_Y_BOTTOM_OFFSET;
+		lcd.setFont(&SECONDARY_TEXT_FONT);
+		lcd.setCursor(PRESET_NAME_X_OFFSET, yOffset);
+		lcd.getTextBounds(secondaryText, PRESET_NAME_X_OFFSET, yOffset, &x1, &y1, &w, &h);
+		lcd.setCursor(LCD_WIDTH/2 - w/2, yOffset);
+		lcd.print(secondaryText);
+	}
 }
 
 void display_DrawMidiIndicator(bool active)
@@ -127,18 +135,6 @@ void display_DrawWirelessIndicator(uint8_t type, uint8_t state)
 		else if(state == 1)
 		{
 			lcd.fillCircle((LCD_WIDTH/2) + (CIRCLE_INDICATOR_SIZE + CIRCLE_INDIACTOR_X_OFFSET), (INFO_BAR_HEIGHT)/2, CIRCLE_INDICATOR_SIZE, BLE_INDICATOR_COLOUR);
-		}
-	}
-	else if(type == WIRELESS_MODE_WIFI)
-	{
-		if(state == 0)
-		{
-			lcd.fillCircle((LCD_WIDTH/2) + (CIRCLE_INDICATOR_SIZE + CIRCLE_INDIACTOR_X_OFFSET), (INFO_BAR_HEIGHT)/2, CIRCLE_INDICATOR_SIZE, ST77XX_BLACK);
-			lcd.drawCircle((LCD_WIDTH/2) + (CIRCLE_INDICATOR_SIZE + CIRCLE_INDIACTOR_X_OFFSET), (INFO_BAR_HEIGHT)/2, CIRCLE_INDICATOR_SIZE, WIFI_INDICATOR_COLOUR);
-		}
-		else if(state == 1)
-		{
-			lcd.fillCircle((LCD_WIDTH/2) + (CIRCLE_INDICATOR_SIZE + CIRCLE_INDIACTOR_X_OFFSET), (INFO_BAR_HEIGHT)/2, CIRCLE_INDICATOR_SIZE, WIFI_INDICATOR_COLOUR);
 		}
 	}
 	else if(type == WIRELESS_MODE_NONE)

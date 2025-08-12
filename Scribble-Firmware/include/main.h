@@ -12,8 +12,7 @@
 // MIDI interface indices for thru routing
 #define MIDI_TRS					0	
 #define MIDI_BLE					1	
-#define MIDI_WIFI					2
-#define NUM_MIDI_INTERFACES	3	// TRS, BLE, WiFi
+#define NUM_MIDI_INTERFACES	2	// TRS, BLE
 #define MIDI_INDICATOR_ON_TIME		80 // Time in milliseconds for MIDI indicator to stay on
 
 #define MIDI_CLOCK_PRESET		0
@@ -23,11 +22,6 @@
 
 #define WIRELESS_MODE_NONE		0
 #define WIRELESS_MODE_BLE		1
-#define WIRELESS_MODE_WIFI		2
-
-#define WIFI_STATE_NOT_CONNECTED		0
-#define WIFI_STATE_CONNECTED			1
-#define WIFI_STATE_AP					2
 
 #define UI_MODE_LIGHT		0
 #define UI_MODE_DARK			1
@@ -45,7 +39,6 @@ typedef struct
 	uint32_t pedalModel;				// Pedal model ID
 	uint8_t uiLightMode;				// 0 = dark, 1 = light, 2 = auto (follow pedal model)
 	uint16_t mainColour;				// Main UI colour (16-bit RGB565)
-	uint8_t useLargePresetFont;	// 0 = use small text, 1 = use large text
 	
 	// MIDI settings
 	uint8_t midiChannel;				// MIDI channel for incoming messages
@@ -54,10 +47,9 @@ typedef struct
 	uint8_t clockMode;				// 0 = preset BPM, 1 = external MIDI clock, 2 = global BPM, 3 = off
 	uint8_t midiTrsThruHandles[NUM_MIDI_INTERFACES];
 	uint8_t midiBleThruHandles[NUM_MIDI_INTERFACES];
-	uint8_t midiWifiThruHandles[NUM_MIDI_INTERFACES];
-
+	uint8_t midiClockOutHandles[NUM_MIDI_INTERFACES];
 	// Connectivity settings
-	uint8_t wirelessType;			// 0 = None, 1 = BLE, 2 = WiFi
+	uint8_t wirelessType;			// 0 = None, 1 = BLE
 } GlobalSettings;
 
 typedef struct
@@ -70,8 +62,7 @@ typedef struct
 	float bpm;
 } Preset;
 
-extern uint8_t wifiState;			 // 0 = not connected, 1 = connected, 2 = AP
-extern int8_t wifiRssi;
+extern int8_t bleRssi;
 extern float currentBpm;
 extern GlobalSettings globalSettings;
 extern Preset presets[];

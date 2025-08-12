@@ -80,7 +80,7 @@ void esp32Settings_BootCheck(	void* globalSettings, uint16_t gSize, void* preset
 	globalConfigFile.close();
 	
 	// Read the global settings
-	esp32Setting_ReadGlobalSettings();
+	esp32Settings_ReadGlobalSettings();
 
 	// Check the preset file size from the file system
 	File presetsFile = LittleFS.open("/presets.txt", "r");
@@ -94,7 +94,7 @@ void esp32Settings_BootCheck(	void* globalSettings, uint16_t gSize, void* preset
 	}
 
 	// Read the preset data
-	esp32Setting_ReadPresets();
+	esp32Settings_ReadPresets();
 
 	// Uncomment to force a new device configuration
 	// globalSettings.bootState = 0;
@@ -128,7 +128,7 @@ void esp32Settings_NewDeviceConfig()
 
 	// Create the storage file for the global config
 	ESP_LOGI(SETTINGS_TAG, "Creating global settings file...");
-	esp32Setting_SaveGlobalSettings();
+	esp32Settings_SaveGlobalSettings();
 
 	ESP_LOGI(SETTINGS_TAG, "Boot flag = %d", *bootFlagPtr);
 	
@@ -141,7 +141,7 @@ void esp32Settings_NewDeviceConfig()
 
 	// Create the presets storage file
 	ESP_LOGI(SETTINGS_TAG, "Creating presets file...");
-	esp32Setting_SavePresets();
+	esp32Settings_SavePresets();
 
 	ESP_LOGI(SETTINGS_TAG, "Device configured. Rebooting.");
 
@@ -152,10 +152,10 @@ void esp32Settings_NewDeviceConfig()
 void esp32Settings_StandardBoot()
 {
 	// Read the preset data into the struct array
-	esp32Setting_ReadGlobalSettings();
+	esp32Settings_ReadGlobalSettings();
 
 	// Read the preset data into the struct array
-	esp32Setting_ReadPresets();
+	esp32Settings_ReadPresets();
 
 	ESP_LOGI(SETTINGS_TAG, "Standard boot complete!");
 	esp32Settings_ListDir(LittleFS, "/", 1);
@@ -190,9 +190,19 @@ void esp32Settings_AssignDefaultPresetSettings(void (fptr)())
 	}
 }
 
+void esp32Settings_ResetAllSettings()
+{
+	uint8_t resetBootStateValue = 0;
+	ESP_LOGI(SETTINGS_TAG, "Writing reset bootstate.");
+	File globalConfigFile = LittleFS.open("/global.txt", "w");
+	size_t len = globalConfigFile.write((uint8_t *)&resetBootStateValue, 1);
+	globalConfigFile.close();
+	ESP_LOGI(SETTINGS_TAG, "Wrote %d bytes to global file (expected %d).", len, 1);
+	delay(1);
+	esp32Settings_SoftwareReset();
+}
 
-
-void esp32Setting_ReadGlobalSettings()
+void esp32Settings_ReadGlobalSettings()
 {
 	ESP_LOGI(SETTINGS_TAG, "Reading global settings...");
 	File globalConfigFile = LittleFS.open("/global.txt", "r");
@@ -200,7 +210,7 @@ void esp32Setting_ReadGlobalSettings()
 	globalConfigFile.close();
 }
 
-void esp32Setting_SaveGlobalSettings()
+void esp32Settings_SaveGlobalSettings()
 {
 	ESP_LOGI(SETTINGS_TAG, "Saving global settings to file.");
 	File globalConfigFile = LittleFS.open("/global.txt", "w");
@@ -209,7 +219,7 @@ void esp32Setting_SaveGlobalSettings()
 	ESP_LOGI(SETTINGS_TAG, "Wrote %d bytes to global file (expected %d).", len, globalSettingsSize);
 }
 
-void esp32Setting_ReadPresets()
+void esp32Settings_ReadPresets()
 {
 	ESP_LOGI(SETTINGS_TAG, "Reading presets...");
 	File presetsFile = LittleFS.open("/presets.txt", "r");
@@ -217,7 +227,7 @@ void esp32Setting_ReadPresets()
 	presetsFile.close();
 }
 
-void esp32Setting_SavePresets()
+void esp32Settings_SavePresets()
 {
 	ESP_LOGI(SETTINGS_TAG, "Saving presets to file.");
 	File presetsFile = LittleFS.open("/presets.txt", "w");

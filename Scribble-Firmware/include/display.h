@@ -20,27 +20,30 @@
 #define BPM_Y_OFFSET					35
 
 #define PRESET_NAME_X_OFFSET			10
-#define PRESET_NAME_Y_OFFSET			120
-#define PRESET_NAME_Y_LARGE_OFFSET	100
+#define PRESET_NAME_Y_CENTRE_OFFSET	120
+#define PRESET_NAME_Y_TOP_OFFSET		100
+#define PRESET_NAME_Y_BOTTOM_OFFSET	145
 
-#define CIRCLE_INDICATOR_SIZE			14
-#define CIRCLE_INDIACTOR_X_OFFSET	8
+#define CIRCLE_INDICATOR_SIZE			12
+#define CIRCLE_INDIACTOR_X_OFFSET	6
 
 #define PRESET_NUM_FONT			FreeSansBold18pt7b
 #define BPM_FONT					FreeSansBold18pt7b
 #define PRESET_NAME_FONT		FreeSansBold24pt7b
-#define LARGE_PRESET_FONT		FreeSansBold24pt7b
+#define SECONDARY_TEXT_FONT	FreeSansBold18pt7b
 
 // Colours
 #define GEN_LOSS_BLUE				0xa69b
-#define MIDI_INDICATOR_COLOUR		0xfcc0
-#define BLE_INDICATOR_COLOUR		0x059f
-#define WIFI_INDICATOR_COLOUR		0xc01f
+#define MIDI_INDICATOR_COLOUR		0xfcc0	// Orange
+#define BLE_INDICATOR_COLOUR		0x059f	// Blue
+#define CLOCK_START_COLOUR			0x07e0	// Green
+#define CLOCK_STOP_COLOUR			0xfcc0	// Orange
 
 void display_Init();
 void display_DrawMainScreen();
 void display_DrawPresetNumber(uint16_t	 presetNumber);
 void display_DrawBpm(float value);
+void display_SetBpmDrawColour(uint16_t colour);
 void display_DrawMainText(const char* text, const char* secondaryText);
 void display_DrawMidiIndicator(bool active);
 void display_DrawWirelessIndicator(uint8_t type, uint8_t state);

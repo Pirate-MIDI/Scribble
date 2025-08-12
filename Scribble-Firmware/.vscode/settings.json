@@ -1,9 +1,18 @@
 {
-	"idf.pythonInstallPath": "/opt/homebrew/bin/python3",
+	"idf.pythonInstallPath": "C:\\Users\\Sam\\.espressif\\tools\\idf-python\\3.11.2\\python.exe",
 	"files.associations": {
 		"array": "cpp",
 		"string_view": "cpp",
 		"initializer_list": "cpp",
-		"utility": "cpp"
+		"utility": "cpp",
+		"optional": "cpp",
+		"istream": "cpp",
+		"ostream": "cpp",
+		"ratio": "cpp",
+		"system_error": "cpp",
+		"functional": "cpp",
+		"regex": "cpp",
+		"tuple": "cpp",
+		"type_traits": "cpp"
 	}
 }
