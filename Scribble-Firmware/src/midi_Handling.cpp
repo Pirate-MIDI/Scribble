@@ -33,6 +33,10 @@ void midi_ExternalClockHandler();
 void midi_ExternalClockStart();
 void midi_ExternalClockStop();
 
+void midi_OnSync24Callback(uint32_t tick);
+void midi_OnClockStart();
+void midi_OnClockStop();
+
 void midi_BleConnectedHandler();
 void midi_BleDisconnectedHandler();
 

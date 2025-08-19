@@ -36,6 +36,7 @@
 #define GEN_LOSS_BLUE				0xa69b
 #define MIDI_INDICATOR_COLOUR		0xfcc0	// Orange
 #define BLE_INDICATOR_COLOUR		0x059f	// Blue
+#define CLOCK_INTERNAL_COLOUR		0xffff	// White
 #define CLOCK_START_COLOUR			0x07e0	// Green
 #define CLOCK_STOP_COLOUR			0xfcc0	// Orange
 

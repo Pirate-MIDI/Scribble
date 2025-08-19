@@ -39,12 +39,14 @@ typedef struct
 	uint32_t pedalModel;				// Pedal model ID
 	uint8_t uiLightMode;				// 0 = dark, 1 = light, 2 = auto (follow pedal model)
 	uint16_t mainColour;				// Main UI colour (16-bit RGB565)
+	uint16_t textColour;				// Colour for main and secondary text (16-bit RGB565)
 	
 	// MIDI settings
 	uint8_t midiChannel;				// MIDI channel for incoming messages
 	float globalBpm;					// Global BPM value
 	uint8_t midiOutMode; 			// 0 = Type A, 1 = Type B
-	uint8_t clockMode;				// 0 = preset BPM, 1 = external MIDI clock, 2 = global BPM, 3 = off
+	uint8_t clockMode;				
+	uint8_t clockDisplayType;		// 0 = BPM, 1 = millisecond, 2 = flashing indicator
 	uint8_t midiTrsThruHandles[NUM_MIDI_INTERFACES];
 	uint8_t midiBleThruHandles[NUM_MIDI_INTERFACES];
 	uint8_t midiClockOutHandles[NUM_MIDI_INTERFACES];
@@ -54,11 +56,13 @@ typedef struct
 
 typedef struct
 {
-	uint32_t id;						// Preset ID;
-	char name[32];						// Preset name
-	char secondaryText[32];			// Secondary text info
-	uint8_t colourOverrideFlag;	// 0 = use main colour, 1 = use preset colour override
-	uint16_t colourOverride;		// Main UI colour override (16-bit RGB565)
+	uint32_t id;							// Preset ID;
+	char name[16+1];							// Preset name
+	char secondaryText[16+1];				// Secondary text info
+	uint8_t colourOverrideFlag;		// 0 = use main colour, 1 = use preset colour override
+	uint16_t colourOverride;			// Main UI colour override (16-bit RGB565)
+	uint8_t textColourOverrideFlag;	// 0 = use main colour, 1 = use preset colour override
+	uint16_t textColourOverride;		// Main text colour override (16-bit RGB565)
 	float bpm;
 } Preset;
 

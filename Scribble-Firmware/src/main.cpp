@@ -107,8 +107,10 @@ void defaultPresetsAssignment()
 		sprintf(presets[i].secondaryText, "Secondary %d", i + 1);
 		//strcpy(presets[i].secondaryText, str);
 		presets[i].colourOverrideFlag = 0; // Use main colour by default
-		presets[i].colourOverride = GEN_LOSS_BLUE; // Default colour
-		presets[i].bpm = 120.0; // Set default BPM
+		presets[i].colourOverride = 0; // Default colour
+		presets[i].textColourOverrideFlag = 0; // Use main colour by default
+		presets[i].textColourOverride = 0; // Default colour
+		presets[i].bpm = 40.0 + i; // Set default BPM
 		ESP_LOGI(MAIN_TAG, "Preset %d: %s", i, presets[i].name);
 	}
 }
@@ -275,6 +277,14 @@ void indicatorTask(void* parameter)
 			else if(	globalSettings.clockMode == MIDI_CLOCK_PRESET ||
 						globalSettings.clockMode == MIDI_CLOCK_GLOBAL)
 			{
+				switch(newClockEvent)
+				{
+					case MIDI_CLOCK_EVENT_CHANGE:
+						// The tempo has changed; update the display with new bpm
+						display_SetBpmDrawColour(CLOCK_START_COLOUR); 
+						display_DrawBpm(currentBpm);
+					break;
+				}
 				// TODO: is a clock tempo indicator needed considering most pedals have them already?
 				// Might not be worth adding to avoid confusion
 			}
