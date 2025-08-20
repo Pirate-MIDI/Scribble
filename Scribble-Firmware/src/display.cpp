@@ -12,6 +12,9 @@ uint16_t clockTempoColour = ST77XX_WHITE; // Default clock tempo colour
 
 void display_Init()
 {
+	// Set the display brightness
+	analogWrite(LCD_BL_PIN, globalSettings.displayBrightness);
+	// Initialise the display
 	SPI.begin(SPI_SCK_PIN, -1, SPI_MOSI_PIN, -1);
 	lcd.init(172, 320);           // Init ST7789 172x320
 	lcd.setRotation(3); // rotates the screen

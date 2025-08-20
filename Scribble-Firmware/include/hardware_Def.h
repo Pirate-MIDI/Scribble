@@ -11,9 +11,10 @@
 #define LCD_CS_PIN			6
 #define LCD_DC_PIN			7
 #define LCD_RST_PIN			10
+#define LCD_BL_PIN			8
 
-#define SWITCH1_PIN			9
-#define SWITCH2_PIN			21
+#define SWITCH1_PIN			2
+#define SWITCH2_PIN			9
 
 
 #endif // HARDWARE_H

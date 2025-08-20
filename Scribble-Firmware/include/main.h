@@ -27,6 +27,24 @@
 #define UI_MODE_DARK			1
 #define UI_MODE_AUTO			2
 
+#define DEFAULT_DISPLAY_BRIGHTNESS	255
+
+#define NUM_SWITCH_MESSAGES			8
+
+typedef enum
+{
+	SwitchPresetUp,
+	SwitchPresetDown,
+	SwitchCustom
+} SwitchMode;
+
+typedef struct
+{
+	uint8_t statusByte;
+	uint8_t data1Byte;
+	uint8_t data2Byte;
+} MidiMessage;
+
 typedef struct
 {
 	// System settings
@@ -40,6 +58,8 @@ typedef struct
 	uint8_t uiLightMode;				// 0 = dark, 1 = light, 2 = auto (follow pedal model)
 	uint16_t mainColour;				// Main UI colour (16-bit RGB565)
 	uint16_t textColour;				// Colour for main and secondary text (16-bit RGB565)
+	uint8_t displayBrightness;		// 8-bit LCD backlight brightness
+	SwitchMode switchMode[2];
 	
 	// MIDI settings
 	uint8_t midiChannel;				// MIDI channel for incoming messages
@@ -50,6 +70,9 @@ typedef struct
 	uint8_t midiTrsThruHandles[NUM_MIDI_INTERFACES];
 	uint8_t midiBleThruHandles[NUM_MIDI_INTERFACES];
 	uint8_t midiClockOutHandles[NUM_MIDI_INTERFACES];
+	MidiMessage switchPressMessages[2][NUM_SWITCH_MESSAGES];
+	MidiMessage switchHoldMessages[2][NUM_SWITCH_MESSAGES];
+
 	// Connectivity settings
 	uint8_t wirelessType;			// 0 = None, 1 = BLE
 } GlobalSettings;
@@ -64,6 +87,9 @@ typedef struct
 	uint8_t textColourOverrideFlag;	// 0 = use main colour, 1 = use preset colour override
 	uint16_t textColourOverride;		// Main text colour override (16-bit RGB565)
 	float bpm;
+	MidiMessage switchPressMessages[2][NUM_SWITCH_MESSAGES];
+	MidiMessage switchHoldMessages[2][NUM_SWITCH_MESSAGES];
+
 } Preset;
 
 extern int8_t bleRssi;

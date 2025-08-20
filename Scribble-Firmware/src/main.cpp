@@ -9,6 +9,7 @@
 #include "soc/rtc_cntl_reg.h"
 #include "MIDI.h"
 #include "device_api.h"
+#include "buttons.h"
 
 static const char* MAIN_TAG = "MAIN";
 
@@ -62,11 +63,13 @@ void setup()
 
 	midi_Init();
 	display_Init();
+	buttons_Init();
 }
 
 void loop()
 {
 	midi_ReadAll();
+	buttons_Process();
 	
 	//delay(10);		
 }
@@ -81,6 +84,9 @@ void defaultGlobalSettingsAssignment()
 	// UI settings
 	globalSettings.uiLightMode = 0; 						// Auto dark mode
 	globalSettings.mainColour = GEN_LOSS_BLUE;
+	globalSettings.displayBrightness = DEFAULT_DISPLAY_BRIGHTNESS;
+	globalSettings.switchMode[0] = SwitchPresetDown;
+	globalSettings.switchMode[1] = SwitchPresetUp;
 
 	// MIDI settings
 	globalSettings.midiChannel = MIDI_CHANNEL_OMNI; // Default MIDI channel
@@ -95,6 +101,15 @@ void defaultGlobalSettingsAssignment()
 	globalSettings.midiBleThruHandles[MIDI_BLE] = 1;
 
 	globalSettings.wirelessType = WIRELESS_MODE_BLE;
+
+	for(uint8_t i=0; i<NUM_SWITCH_MESSAGES; i++)
+	{
+		// A 0 status byte indicates an 'unset' message and the end of available messages
+		globalSettings.switchPressMessages[0][i].statusByte = 0;
+		globalSettings.switchPressMessages[1][i].statusByte = 0;
+		globalSettings.switchHoldMessages[0][i].statusByte = 0;
+		globalSettings.switchHoldMessages[1][i].statusByte = 0;
+	}
 }
 
 void defaultPresetsAssignment()
@@ -112,6 +127,14 @@ void defaultPresetsAssignment()
 		presets[i].textColourOverride = 0; // Default colour
 		presets[i].bpm = 40.0 + i; // Set default BPM
 		ESP_LOGI(MAIN_TAG, "Preset %d: %s", i, presets[i].name);
+		for(uint8_t i=0; i<NUM_SWITCH_MESSAGES; i++)
+		{
+			// A 0 status byte indicates an 'unset' message and the end of available messages
+			presets[i].switchPressMessages[0][i].statusByte = 0;
+			presets[i].switchPressMessages[1][i].statusByte = 0;
+			presets[i].switchHoldMessages[0][i].statusByte = 0;
+			presets[i].switchHoldMessages[1][i].statusByte = 0;
+		}
 	}
 }
 
