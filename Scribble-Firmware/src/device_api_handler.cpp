@@ -49,9 +49,9 @@ void sendGlobalSettings(uint8_t transport)
 	doc["deviceName"] = globalSettings.deviceName;
 	doc[USB_CURRENT_BANK_STRING] = globalSettings.currentPreset;
 
-	if(globalSettings.uiLightMode == MIDI_CLOCK_PRESET)
+	if(globalSettings.uiLightMode == UI_MODE_DARK)
 		doc["lightMode"] = "dark";
-	else if(globalSettings.uiLightMode == MIDI_CLOCK_EXTERNAL)
+	else if(globalSettings.uiLightMode == UI_MODE_LIGHT)
 		doc["lightMode"] = "light";
 	else
 		doc["lightMode"] = "auto";

@@ -4,6 +4,7 @@
 #include "Adafruit_GFX.h"
 #include <Fonts/FreeSansBold18pt7b.h>
 #include <Fonts/FreeSansBold24pt7b.h>
+#include <Fonts/FreeSansBold12pt7b.h>
 
 // LCD parameters
 #define LCD_WIDTH		320
@@ -13,7 +14,7 @@
 #define MAIN_FILL_HEIGHT	120
 #define INFO_BAR_HEIGHT		LCD_HEIGHT-MAIN_FILL_HEIGHT
 
-#define PRESET_NUM_X_OFFSET		LCD_WIDTH - 70
+#define PRESET_NUM_X_OFFSET		LCD_WIDTH - 17
 #define PRESET_NUM_Y_OFFSET		35
 
 #define BPM_X_OFFSET					10
@@ -31,6 +32,7 @@
 #define BPM_FONT					FreeSansBold18pt7b
 #define PRESET_NAME_FONT		FreeSansBold24pt7b
 #define SECONDARY_TEXT_FONT	FreeSansBold18pt7b
+#define INFO_TEXT_FONT			FreeSansBold12pt7b
 
 // Colours
 #define GEN_LOSS_BLUE				0xa69b
@@ -41,6 +43,8 @@
 #define CLOCK_STOP_COLOUR			0xfcc0	// Orange
 
 void display_Init();
+void display_SetBrightness(uint8_t value);
+void display_ConfigureNewDeviceScreen();
 void display_DrawMainScreen();
 void display_DrawPresetNumber(uint16_t	 presetNumber);
 void display_DrawBpm(float value);

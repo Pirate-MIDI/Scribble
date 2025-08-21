@@ -43,7 +43,7 @@ void midi_BleDisconnectedHandler();
 void midi_ClockTask(void* parameter);
 
 
-// Setup and utility
+//---------------- Setup and Utility ----------------//
 void midi_Init()
 {
 	BaseType_t taskResult = xTaskCreatePinnedToCore(
@@ -54,7 +54,7 @@ void midi_Init()
 		MIDI_CLOCK_TASK_PRIORITY, // priority of the task 
 		NULL, // Task handle to keep track of created task 
 		1); // pin task to core 1 
-	ESP_LOGI(MAIN_TAG, "MIDI Clock task created: %d", taskResult);
+	ESP_LOGI(MIDI_TAG, "MIDI Clock task created: %d", taskResult);
 
 	// Configure pins
 	if(globalSettings.midiOutMode == MIDI_OUT_TYPE_A)
@@ -159,6 +159,24 @@ void midi_ReadAll()
 		}
 	}
 }
+
+
+//---------------- Transmission ----------------//
+void midi_Send(MidiMessage message)
+{
+	// Channel messages
+	if((message.statusByte & 0xF0) <= midi::PitchBend)
+	{
+		uint8_t type = message.statusByte & 0xF0;
+		uint8_t channel = message.statusByte & 0x0F;
+		trsMidi.send((midi::MidiType)type, message.data1Byte, message.data2Byte, channel);
+	}
+	else
+	{
+		trsMidi.send((midi::MidiType)message.statusByte, message.data1Byte, message.data2Byte, 0);
+	}
+}
+
 
 
 //---------------- MIDI Clock ----------------//
@@ -296,7 +314,7 @@ void midi_SendDeviceApiSysExString(const char* array, unsigned size, uint8_t con
 //---------------- Free RTOS ----------------//
 void midi_ClockTask(void* parameter)
 {
-	ESP_LOGI(MAIN_TAG, "MIDI Clock task started");
+	ESP_LOGI(MIDI_TAG, "MIDI Clock task started");
 	while(1)
 	{
 		// If the clock is in external mode, handle the external clock

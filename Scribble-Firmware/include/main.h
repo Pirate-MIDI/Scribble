@@ -1,6 +1,7 @@
 #ifndef MAIN_H
 #define MAIN_H
 #include "stdint.h"
+#include "midi_handling.h"
 
 #define NUM_PRESETS 			128
 
@@ -30,20 +31,18 @@
 #define DEFAULT_DISPLAY_BRIGHTNESS	255
 
 #define NUM_SWITCH_MESSAGES			8
+#define NUM_PRESET_MESSAGES			8
+#define NUM_CUSTOM_MESSAGES			8
+
 
 typedef enum
 {
-	SwitchPresetUp,
-	SwitchPresetDown,
+	SwitchPressPresetUp,
+	SwitchPressPresetDown,
+	SwitchHoldPresetUp,
+	SwitchHoldPresetDown,
 	SwitchCustom
 } SwitchMode;
-
-typedef struct
-{
-	uint8_t statusByte;
-	uint8_t data1Byte;
-	uint8_t data2Byte;
-} MidiMessage;
 
 typedef struct
 {
@@ -72,6 +71,12 @@ typedef struct
 	uint8_t midiClockOutHandles[NUM_MIDI_INTERFACES];
 	MidiMessage switchPressMessages[2][NUM_SWITCH_MESSAGES];
 	MidiMessage switchHoldMessages[2][NUM_SWITCH_MESSAGES];
+	MidiMessage customMessages[NUM_CUSTOM_MESSAGES];
+	uint8_t presetUpCC;
+	uint8_t presetDownCC;
+	uint8_t goToPresetCC;
+	uint8_t globalCustomMessagesCC;
+	uint8_t presetCustomMessagesCC;
 
 	// Connectivity settings
 	uint8_t wirelessType;			// 0 = None, 1 = BLE
@@ -89,6 +94,8 @@ typedef struct
 	float bpm;
 	MidiMessage switchPressMessages[2][NUM_SWITCH_MESSAGES];
 	MidiMessage switchHoldMessages[2][NUM_SWITCH_MESSAGES];
+	MidiMessage presetMessages[NUM_PRESET_MESSAGES];
+	MidiMessage customMessages[NUM_CUSTOM_MESSAGES];
 
 } Preset;
 

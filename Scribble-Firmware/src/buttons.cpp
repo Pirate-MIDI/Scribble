@@ -10,9 +10,12 @@ Button2 switch2;
 
 void switch1Press(Button2& button);
 void switch2Press(Button2& button);
-void switchPressHandler(uint8_t switchIndex);
+
 void switch1Hold(Button2& button);
 void switch2Hold(Button2& button);
+
+void switchPressHandler(uint8_t switchIndex);
+void switchHoldHandler(uint8_t switchIndex);
 
 void buttons_Init()
 {
@@ -23,8 +26,14 @@ void buttons_Init()
 	switch2.begin(SWITCH2_PIN, INPUT, true);
 	switch1.setClickHandler(switch1Press);
 	switch2.setClickHandler(switch2Press);
+	//switch1.setDoubleClickHandler(switch1Press);
+	//switch2.setDoubleClickHandler(switch2Press);
 	switch1.setLongClickDetectedHandler(switch1Hold);
 	switch2.setLongClickDetectedHandler(switch2Hold);
+
+	// Configure the event times
+	switch1.setDoubleClickTime(5);
+	switch2.setDoubleClickTime(5);
 }
 
 void buttons_Process()
@@ -46,26 +55,72 @@ void switch2Press(Button2& button)
 
 void switchPressHandler(uint8_t switchIndex)
 {
-	if(globalSettings.switchMode[switchIndex] == SwitchPresetUp)
+	// Trigger any available message stacks before changing presets (if applicable)
+	// Global
+	for(uint8_t i=0; i<NUM_SWITCH_MESSAGES; i++)
+	{
+		if(globalSettings.switchPressMessages[switchIndex][i].statusByte == 0)
+			break;
+
+		midi_Send(globalSettings.switchPressMessages[switchIndex][i]);
+	}
+	// Preset
+	for(uint8_t i=0; i<NUM_SWITCH_MESSAGES; i++)
+	{
+		if(presets[globalSettings.currentPreset].switchPressMessages[switchIndex][i].statusByte == 0)
+			break;
+
+		midi_Send(presets[globalSettings.currentPreset].switchPressMessages[switchIndex][i]);
+	}
+
+	// Triger any navigation actions
+	if(globalSettings.switchMode[switchIndex] == SwitchPressPresetUp)
 	{
 		presetUp();
 	}
-	else if(globalSettings.switchMode[switchIndex] == SwitchPresetDown)
+	else if(globalSettings.switchMode[switchIndex] == SwitchPressPresetDown)
 	{
 		presetDown();
-	}
-	else if(globalSettings.switchMode[switchIndex] == SwitchCustom)
-	{
-
 	}
 }
 
 void switch1Hold(Button2& button)
 {
-
+	switchHoldHandler(0);
 }
 
 void switch2Hold(Button2& button)
 {
+	switchHoldHandler(1);
+}
 
+void switchHoldHandler(uint8_t switchIndex)
+{
+	// Trigger any available message stacks before changing presets (if applicable)
+	// Global
+	for(uint8_t i=0; i<NUM_SWITCH_MESSAGES; i++)
+	{
+		if(globalSettings.switchHoldMessages[switchIndex][i].statusByte == 0)
+			break;
+
+		midi_Send(globalSettings.switchHoldMessages[switchIndex][i]);
+	}
+	// Preset
+	for(uint8_t i=0; i<NUM_SWITCH_MESSAGES; i++)
+	{
+		if(presets[globalSettings.currentPreset].switchHoldMessages[switchIndex][i].statusByte == 0)
+			break;
+
+		midi_Send(presets[globalSettings.currentPreset].switchHoldMessages[switchIndex][i]);
+	}
+
+	// Triger any navigation actions
+	if(globalSettings.switchMode[switchIndex] == SwitchHoldPresetUp)
+	{
+		presetUp();
+	}
+	else if(globalSettings.switchMode[switchIndex] == SwitchHoldPresetDown)
+	{
+		presetDown();
+	}
 }

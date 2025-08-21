@@ -26,18 +26,18 @@ void defaultPresetsAssignment();
 void indicatorTask(void* parameter);
 void deviceApiTask(void* parameter);
 
-//HWCDC USBSerial;
-
 void setup()
 {
 	Serial.begin(115200);
 	Serial.setRxBufferSize(8192);
 	ESP_LOGI("MAIN", "Starting setup...");
-	
+
 	// Assign global and preset settings and boot the file system
 	esp32Settings_AssignDefaultGlobalSettings(defaultGlobalSettingsAssignment);
 	esp32Settings_AssignDefaultPresetSettings(defaultPresetsAssignment);
 	esp32Settings_BootCheck(&globalSettings, sizeof(GlobalSettings), presets, sizeof(Preset), NUM_PRESETS, &globalSettings.bootState);
+
+	display_Init();
 
 	// Click system tasks
 	BaseType_t taskResult;
@@ -60,33 +60,34 @@ void setup()
 		NULL, // Task handle to keep track of created task 
 		1); // pin task to core 1 
 	ESP_LOGI(MAIN_TAG, "Device API task created: %d", taskResult);
-
+	
 	midi_Init();
-	display_Init();
 	buttons_Init();
 }
 
 void loop()
 {
 	midi_ReadAll();
-	buttons_Process();
-	
-	//delay(10);		
+	buttons_Process();	
 }
 
 
 void defaultGlobalSettingsAssignment()
 {
+	// Set the display to indicate the new device configuration process
+	display_Init();
+	display_ConfigureNewDeviceScreen();
+	delay(1000);
 	// System settings
 	globalSettings.bootState = 0; 						// Initial boot state
 	globalSettings.currentPreset = 0; 					// Start with the first preset
 
 	// UI settings
-	globalSettings.uiLightMode = 0; 						// Auto dark mode
+	globalSettings.uiLightMode = UI_MODE_DARK;
 	globalSettings.mainColour = GEN_LOSS_BLUE;
 	globalSettings.displayBrightness = DEFAULT_DISPLAY_BRIGHTNESS;
-	globalSettings.switchMode[0] = SwitchPresetDown;
-	globalSettings.switchMode[1] = SwitchPresetUp;
+	globalSettings.switchMode[0] = SwitchPressPresetDown;
+	globalSettings.switchMode[1] = SwitchPressPresetUp;
 
 	// MIDI settings
 	globalSettings.midiChannel = MIDI_CHANNEL_OMNI; // Default MIDI channel
@@ -99,9 +100,16 @@ void defaultGlobalSettingsAssignment()
 	// BLE MIDI thru flags
 	globalSettings.midiBleThruHandles[MIDI_TRS] = 1;
 	globalSettings.midiBleThruHandles[MIDI_BLE] = 1;
+	// Default MIDI mapping
+	globalSettings.presetUpCC = PRESET_UP_CC;
+	globalSettings.presetDownCC = PRESET_DOWN_CC;
+	globalSettings.goToPresetCC = PRESET_SELECT_CC;
+	globalSettings.globalCustomMessagesCC = CUSTOM_GLOBAL_STACK_CC;
+	globalSettings.presetCustomMessagesCC = CUSTOM_PRESET_STACK_CC;
 
 	globalSettings.wirelessType = WIRELESS_MODE_BLE;
 
+	// Set all message stacks to empty
 	for(uint8_t i=0; i<NUM_SWITCH_MESSAGES; i++)
 	{
 		// A 0 status byte indicates an 'unset' message and the end of available messages
@@ -109,6 +117,10 @@ void defaultGlobalSettingsAssignment()
 		globalSettings.switchPressMessages[1][i].statusByte = 0;
 		globalSettings.switchHoldMessages[0][i].statusByte = 0;
 		globalSettings.switchHoldMessages[1][i].statusByte = 0;
+	}
+	for(uint8_t i=0; i<NUM_CUSTOM_MESSAGES; i++)
+	{
+		globalSettings.customMessages[i].statusByte = 0;
 	}
 }
 
@@ -127,13 +139,21 @@ void defaultPresetsAssignment()
 		presets[i].textColourOverride = 0; // Default colour
 		presets[i].bpm = 40.0 + i; // Set default BPM
 		ESP_LOGI(MAIN_TAG, "Preset %d: %s", i, presets[i].name);
-		for(uint8_t i=0; i<NUM_SWITCH_MESSAGES; i++)
+		for(uint8_t j=0; j<NUM_SWITCH_MESSAGES; j++)
 		{
 			// A 0 status byte indicates an 'unset' message and the end of available messages
-			presets[i].switchPressMessages[0][i].statusByte = 0;
-			presets[i].switchPressMessages[1][i].statusByte = 0;
-			presets[i].switchHoldMessages[0][i].statusByte = 0;
-			presets[i].switchHoldMessages[1][i].statusByte = 0;
+			presets[i].switchPressMessages[0][j].statusByte = 0;
+			presets[i].switchPressMessages[1][j].statusByte = 0;
+			presets[i].switchHoldMessages[0][j].statusByte = 0;
+			presets[i].switchHoldMessages[1][j].statusByte = 0;
+		}
+		for(uint8_t j=0; j<NUM_PRESET_MESSAGES; j++)
+		{
+			presets[i].presetMessages[j].statusByte = 0;
+		}
+		for(uint8_t j=0; j<NUM_CUSTOM_MESSAGES; j++)
+		{
+			presets[i].customMessages[j].statusByte = 0;
 		}
 	}
 }
