@@ -10,6 +10,7 @@
 #include "MIDI.h"
 #include "device_api.h"
 #include "buttons.h"
+#include "midi_clock.h"
 
 static const char* MAIN_TAG = "MAIN";
 
@@ -20,18 +21,25 @@ float currentBpm = 120.0;
 GlobalSettings globalSettings;
 Preset presets[NUM_PRESETS];
 
+
+
 void defaultGlobalSettingsAssignment();
 void defaultPresetsAssignment();
 
 void indicatorTask(void* parameter);
 void deviceApiTask(void* parameter);
 
+void setOutTypeA();
+void setOutTypeB();
+void assignMidiCallbacks();
+
 void setup()
 {
 	Serial.begin(115200);
 	Serial.setRxBufferSize(8192);
 	ESP_LOGI("MAIN", "Starting setup...");
-
+	assignMidiCallbacks();
+	esp32Manager_Init();
 	// Assign global and preset settings and boot the file system
 	esp32Settings_AssignDefaultGlobalSettings(defaultGlobalSettingsAssignment);
 	esp32Settings_AssignDefaultPresetSettings(defaultPresetsAssignment);
@@ -39,7 +47,17 @@ void setup()
 
 	display_Init();
 
-	// Click system tasks
+	// Configure pins
+	if(globalSettings.midiOutMode == MIDI_OUT_TYPE_A)
+	{
+		setOutTypeA();
+	}
+	else if(globalSettings.midiOutMode == MIDI_OUT_TYPE_B)
+	{
+		setOutTypeB();
+	}
+
+	// Display indicator task
 	BaseType_t taskResult;
 	taskResult = xTaskCreatePinnedToCore(
 		indicatorTask, // Task function. 
@@ -51,6 +69,7 @@ void setup()
 		1); // pin task to core 1 
 	ESP_LOGI(MAIN_TAG, "Indicator task created: %d", taskResult);
 
+	// Device API task
 	taskResult = xTaskCreatePinnedToCore(
 		deviceApiTask, // Task function. 
 		"Device API Task", // name of task. 
@@ -60,8 +79,11 @@ void setup()
 		NULL, // Task handle to keep track of created task 
 		1); // pin task to core 1 
 	ESP_LOGI(MAIN_TAG, "Device API task created: %d", taskResult);
+
+	
 	
 	midi_Init();
+	clock_Init();
 	buttons_Init();
 }
 
@@ -70,7 +92,6 @@ void loop()
 	midi_ReadAll();
 	buttons_Process();	
 }
-
 
 void defaultGlobalSettingsAssignment()
 {
@@ -94,12 +115,28 @@ void defaultGlobalSettingsAssignment()
 	globalSettings.clockMode = MIDI_CLOCK_EXTERNAL; 						// Use preset BPM by default
 	globalSettings.globalBpm = 120.0; 					// Default global BPM
 	globalSettings.midiOutMode = MIDI_OUT_TYPE_A; 	// Type A MIDI output by default
-	// TRS MIDI thru flags
-	globalSettings.midiTrsThruHandles[MIDI_TRS] = 1;
-	globalSettings.midiTrsThruHandles[MIDI_BLE] = 1;
-	// BLE MIDI thru flags
-	globalSettings.midiBleThruHandles[MIDI_TRS] = 1;
-	globalSettings.midiBleThruHandles[MIDI_BLE] = 1;
+
+	// Thru handle assignments
+	globalSettings.usbdThruHandles[MidiUSBD] = 1;
+	globalSettings.usbdThruHandles[MidiBLE] = 1;
+	globalSettings.usbdThruHandles[MidiWiFiRTP] = 1;
+	globalSettings.usbdThruHandles[MidiSerial1] = 1;
+
+	globalSettings.bleThruHandles[MidiUSBD] = 1;
+	globalSettings.bleThruHandles[MidiBLE] = 1;
+	globalSettings.bleThruHandles[MidiWiFiRTP] = 1;
+	globalSettings.bleThruHandles[MidiSerial1] = 1;
+
+	globalSettings.wifiThruHandles[MidiUSBD] = 1;
+	globalSettings.wifiThruHandles[MidiBLE] = 1;
+	globalSettings.wifiThruHandles[MidiWiFiRTP] = 1;
+	globalSettings.wifiThruHandles[MidiSerial1] = 1;
+
+	globalSettings.midi1ThruHandles[MidiUSBD] = 1;
+	globalSettings.midi1ThruHandles[MidiBLE] = 1;
+	globalSettings.midi1ThruHandles[MidiWiFiRTP] = 1;
+	globalSettings.midi1ThruHandles[MidiSerial1] = 1;
+	
 	// Default MIDI mapping
 	globalSettings.presetUpCC = PRESET_UP_CC;
 	globalSettings.presetDownCC = PRESET_DOWN_CC;
@@ -158,8 +195,20 @@ void defaultPresetsAssignment()
 	}
 }
 
+void assignMidiCallbacks()
+{
+	// Assign thru handling pointers
+	usbdMidiThruHandlesPtr = globalSettings.usbdThruHandles;
+	bleMidiThruHandlesPtr = globalSettings.bleThruHandles;
+	wifiMidiThruHandlesPtr = globalSettings.wifiThruHandles;
+	serial1MidiThruHandlesPtr = globalSettings.midi1ThruHandles;
 
-void midi_ControlChangeHandler(byte channel, byte number, byte value)
+	midi_AssignControlChangeCallback(controlChangeHandler);
+	midi_AssignProgramChangeCallback(programChangeHandler);
+	midi_AssignSysemExclusiveCallback(sysExHandler);
+}
+
+void controlChangeHandler(MidiInterfaceType interface, byte channel, byte number, byte value)
 {
 	if(channel == globalSettings.midiChannel || globalSettings.midiChannel == MIDI_CHANNEL_OMNI)
 	{
@@ -181,7 +230,7 @@ void midi_ControlChangeHandler(byte channel, byte number, byte value)
 	midiReceived = 1;
 }
 
-void midi_ProgramChangeHandler(byte channel, byte number)
+void programChangeHandler(MidiInterfaceType interface, byte channel, byte number)
 {
 	if(channel	== globalSettings.midiChannel || globalSettings.midiChannel == MIDI_CHANNEL_OMNI)
 	{
@@ -190,10 +239,63 @@ void midi_ProgramChangeHandler(byte channel, byte number)
 	midiReceived = 1;
 }
 
-void midi_SysExHandler(byte* data, unsigned length)
+void sysExHandler(MidiInterfaceType interface, byte* data, unsigned length)
 {
 
 }
+
+void sendMidiMessage(MidiMessage message)
+{
+	// Get the transmission interfaces
+	uint8_t sendUsbd = message.midiInterface & 0x01;
+	uint8_t sendBle = (message.midiInterface >> 1) & 0x01;
+	uint8_t sendWifi = (message.midiInterface >> 2) & 0x01;
+	uint8_t sendSerial1 = (message.midiInterface >> 3) & 0x01;
+	// Channel messages
+	if((message.statusByte & 0xF0) <= midi::PitchBend)
+	{
+		uint8_t type = message.statusByte & 0xF0;
+		uint8_t channel = message.statusByte & 0x0F;
+		if(sendUsbd)
+			midi_SendMessage(MidiUSBD, (midi::MidiType)type, channel, message.data1Byte, message.data2Byte);
+		if(sendBle)
+			midi_SendMessage(MidiBLE, (midi::MidiType)type, channel, message.data1Byte, message.data2Byte);
+		if(sendWifi)
+			midi_SendMessage(MidiWiFiRTP, (midi::MidiType)type, channel, message.data1Byte, message.data2Byte);
+		if(sendSerial1)
+			midi_SendMessage(MidiSerial1, (midi::MidiType)type, channel, message.data1Byte, message.data2Byte);
+	}
+	else
+	{
+		if(sendUsbd)
+			midi_SendMessage(MidiUSBD, (midi::MidiType)message.statusByte, 0, message.data1Byte, message.data2Byte);
+		if(sendBle)
+			midi_SendMessage(MidiBLE, (midi::MidiType)message.statusByte, 0, message.data1Byte, message.data2Byte);
+		if(sendWifi)
+			midi_SendMessage(MidiWiFiRTP, (midi::MidiType)message.statusByte, 0, message.data1Byte, message.data2Byte);
+		if(sendSerial1)
+			midi_SendMessage(MidiSerial1, (midi::MidiType)message.statusByte, 0, message.data1Byte, message.data2Byte);
+	}
+}
+
+void setOutTypeA()
+{
+	// For Type A, use the tip as the transmitting pin and the ring as the current source
+	TRS_SERIAL_PORT.setPins(MIDI_RX_PIN, MIDI_TX_TIP_PIN, -1, -1);
+	pinMode(MIDI_TX_TIP_PIN, OUTPUT);
+	digitalWrite(MIDI_TX_TIP_PIN, HIGH);
+}
+
+void setOutTypeB()
+{
+	// For Type B, use the ring as the transmitting pin and the tip as the current source
+	TRS_SERIAL_PORT.setPins(MIDI_RX_PIN, MIDI_TX_RING_PIN, -1, -1);
+	pinMode(MIDI_TX_RING_PIN, OUTPUT);
+	digitalWrite(MIDI_TX_RING_PIN, HIGH);
+}
+
+
+//---------------- MIDI Clock ----------------//
 
 void presetUp()
 {
@@ -209,7 +311,7 @@ void presetUp()
 	}
 	display_DrawPresetNumber(globalSettings.currentPreset);
 	display_DrawMainText(presets[globalSettings.currentPreset].name, presets[globalSettings.currentPreset].secondaryText);
-	midi_SetTempo();
+	clock_SetTempo();
 }
 
 void presetDown()
@@ -226,7 +328,7 @@ void presetDown()
 	}
 	display_DrawPresetNumber(globalSettings.currentPreset);
 	display_DrawMainText(presets[globalSettings.currentPreset].name, presets[globalSettings.currentPreset].secondaryText);
-	midi_SetTempo();
+	clock_SetTempo();
 }
 
 void goToPreset(uint16_t presetIndex)
@@ -237,7 +339,7 @@ void goToPreset(uint16_t presetIndex)
 	}
 	display_DrawPresetNumber(globalSettings.currentPreset);
 	display_DrawMainText(presets[globalSettings.currentPreset].name, presets[globalSettings.currentPreset].secondaryText);
-	midi_SetTempo();
+	clock_SetTempo();
 }
 
 void enterBootloader()

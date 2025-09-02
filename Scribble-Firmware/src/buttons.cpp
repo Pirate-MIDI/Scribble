@@ -53,6 +53,8 @@ void switch2Press(Button2& button)
 	switchPressHandler(1);
 }
 
+
+
 void switchPressHandler(uint8_t switchIndex)
 {
 	// Trigger any available message stacks before changing presets (if applicable)
@@ -62,7 +64,7 @@ void switchPressHandler(uint8_t switchIndex)
 		if(globalSettings.switchPressMessages[switchIndex][i].statusByte == 0)
 			break;
 
-		midi_Send(globalSettings.switchPressMessages[switchIndex][i]);
+		sendMidiMessage(globalSettings.switchPressMessages[switchIndex][i]);
 	}
 	// Preset
 	for(uint8_t i=0; i<NUM_SWITCH_MESSAGES; i++)
@@ -70,7 +72,7 @@ void switchPressHandler(uint8_t switchIndex)
 		if(presets[globalSettings.currentPreset].switchPressMessages[switchIndex][i].statusByte == 0)
 			break;
 
-		midi_Send(presets[globalSettings.currentPreset].switchPressMessages[switchIndex][i]);
+		sendMidiMessage(presets[globalSettings.currentPreset].switchPressMessages[switchIndex][i]);
 	}
 
 	// Triger any navigation actions
@@ -103,7 +105,7 @@ void switchHoldHandler(uint8_t switchIndex)
 		if(globalSettings.switchHoldMessages[switchIndex][i].statusByte == 0)
 			break;
 
-		midi_Send(globalSettings.switchHoldMessages[switchIndex][i]);
+		sendMidiMessage(globalSettings.switchHoldMessages[switchIndex][i]);
 	}
 	// Preset
 	for(uint8_t i=0; i<NUM_SWITCH_MESSAGES; i++)
@@ -111,7 +113,7 @@ void switchHoldHandler(uint8_t switchIndex)
 		if(presets[globalSettings.currentPreset].switchHoldMessages[switchIndex][i].statusByte == 0)
 			break;
 
-		midi_Send(presets[globalSettings.currentPreset].switchHoldMessages[switchIndex][i]);
+		sendMidiMessage(presets[globalSettings.currentPreset].switchHoldMessages[switchIndex][i]);
 	}
 
 	// Triger any navigation actions

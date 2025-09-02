@@ -26,8 +26,8 @@ void ARDUINO_ISR_ATTR handlerISR(void)
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
     // Send a notification to task1
     vTaskNotifyGiveFromISR(taskHandle, &xHigherPriorityTaskWoken);
-    //portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-	 vPortYieldFromISR();
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+	 //vPortYieldFromISR();
 }
 
 // task for user clock process

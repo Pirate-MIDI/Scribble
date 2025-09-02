@@ -58,13 +58,29 @@ void sendGlobalSettings(uint8_t transport)
 
 	doc["mainColour"] = globalSettings.mainColour;
 
-	// MIDI TRS thru handles
-	doc[USB_MIDI1_THRU_HANDLES_STRING][USB_MIDI1_STRING] = (bool)globalSettings.midiTrsThruHandles[MIDI_TRS];
-	doc[USB_MIDI1_THRU_HANDLES_STRING][USB_BLE_STRING] = (bool)globalSettings.midiTrsThruHandles[MIDI_BLE];
+	// MIDI USBD thru handles
+	doc[USB_USBD_THRU_HANDLES_STRING][USB_USBD_STRING] = (bool)globalSettings.usbdThruHandles[MidiUSBD];
+	doc[USB_USBD_THRU_HANDLES_STRING][USB_BLE_STRING] = (bool)globalSettings.usbdThruHandles[MidiBLE];
+	doc[USB_USBD_THRU_HANDLES_STRING][USB_WIFI_STRING] = (bool)globalSettings.usbdThruHandles[MidiWiFiRTP];
+	doc[USB_USBD_THRU_HANDLES_STRING][USB_MIDI1_STRING] = (bool)globalSettings.usbdThruHandles[MidiSerial1];
 
 	// BLE thru handles
-	doc[USB_BLE_THRU_HANDLES_STRING][USB_MIDI1_STRING] = (bool)globalSettings.midiBleThruHandles[MIDI_TRS];
-	doc[USB_BLE_THRU_HANDLES_STRING][USB_BLE_STRING] = (bool)globalSettings.midiBleThruHandles[MIDI_BLE];
+	doc[USB_BLE_THRU_HANDLES_STRING][USB_USBD_STRING] = (bool)globalSettings.bleThruHandles[MidiUSBD];
+	doc[USB_BLE_THRU_HANDLES_STRING][USB_BLE_STRING] = (bool)globalSettings.bleThruHandles[MidiBLE];
+	doc[USB_BLE_THRU_HANDLES_STRING][USB_WIFI_STRING] = (bool)globalSettings.bleThruHandles[MidiWiFiRTP];
+	doc[USB_BLE_THRU_HANDLES_STRING][USB_MIDI1_STRING] = (bool)globalSettings.bleThruHandles[MidiSerial1];
+
+	// MIDI WiFi thru handles
+	doc[USB_WIFI_THRU_HANDLES_STRING][USB_USBD_STRING] = (bool)globalSettings.wifiThruHandles[MidiUSBD];
+	doc[USB_WIFI_THRU_HANDLES_STRING][USB_BLE_STRING] = (bool)globalSettings.wifiThruHandles[MidiBLE];
+	doc[USB_WIFI_THRU_HANDLES_STRING][USB_WIFI_STRING] = (bool)globalSettings.wifiThruHandles[MidiWiFiRTP];
+	doc[USB_WIFI_THRU_HANDLES_STRING][USB_MIDI1_STRING] = (bool)globalSettings.wifiThruHandles[MidiSerial1];
+
+	// MIDI TRS thru handles
+	doc[USB_MIDI1_THRU_HANDLES_STRING][USB_USBD_STRING] = (bool)globalSettings.midi1ThruHandles[MidiUSBD];
+	doc[USB_MIDI1_THRU_HANDLES_STRING][USB_BLE_STRING] = (bool)globalSettings.midi1ThruHandles[MidiBLE];
+	doc[USB_MIDI1_THRU_HANDLES_STRING][USB_WIFI_STRING] = (bool)globalSettings.midi1ThruHandles[MidiWiFiRTP];
+	doc[USB_MIDI1_THRU_HANDLES_STRING][USB_MIDI1_STRING] = (bool)globalSettings.midi1ThruHandles[MidiSerial1];
 
 	// MIDI channels
 	doc[USB_MIDI_CHANNEL_STRING] = globalSettings.midiChannel;
@@ -189,13 +205,29 @@ void parseGlobalSettings(char* appData, uint8_t transport)
 	globalSettings.pedalModel = doc["pedalModel"];
 	globalSettings.mainColour = doc["mainColour"];
 
-	// MIDI 1 thru handles
-	globalSettings.midiTrsThruHandles[MIDI_TRS] = (uint8_t)doc[USB_MIDI1_THRU_HANDLES_STRING][USB_MIDI1_STRING];
-	globalSettings.midiTrsThruHandles[MIDI_BLE] = (uint8_t)doc[USB_MIDI1_THRU_HANDLES_STRING][USB_BLE_STRING];
+	// USBD thru handles
+	globalSettings.usbdThruHandles[MidiUSBD] = (uint8_t)doc[USB_USBD_THRU_HANDLES_STRING][USB_USBD_STRING];
+	globalSettings.usbdThruHandles[MidiBLE] = (uint8_t)doc[USB_USBD_THRU_HANDLES_STRING][USB_BLE_STRING];
+	globalSettings.usbdThruHandles[MidiWiFiRTP] = (uint8_t)doc[USB_USBD_THRU_HANDLES_STRING][USB_WIFI_STRING];
+	globalSettings.usbdThruHandles[MidiSerial1] = (uint8_t)doc[USB_USBD_THRU_HANDLES_STRING][USB_MIDI1_STRING];
 
 	// BLE thru handles
-	globalSettings.midiBleThruHandles[MIDI_TRS] = (uint8_t)doc[USB_BLE_THRU_HANDLES_STRING][USB_MIDI1_STRING];
-	globalSettings.midiBleThruHandles[MIDI_BLE] = (uint8_t)doc[USB_BLE_THRU_HANDLES_STRING][USB_BLE_STRING];
+	globalSettings.bleThruHandles[MidiUSBD] = (uint8_t)doc[USB_BLE_THRU_HANDLES_STRING][USB_USBD_STRING];
+	globalSettings.bleThruHandles[MidiBLE] = (uint8_t)doc[USB_BLE_THRU_HANDLES_STRING][USB_BLE_STRING];
+	globalSettings.bleThruHandles[MidiWiFiRTP] = (uint8_t)doc[USB_BLE_THRU_HANDLES_STRING][USB_WIFI_STRING];
+	globalSettings.bleThruHandles[MidiSerial1] = (uint8_t)doc[USB_BLE_THRU_HANDLES_STRING][USB_MIDI1_STRING];
+
+	// WIFI thru handles
+	globalSettings.wifiThruHandles[MidiUSBD] = (uint8_t)doc[USB_WIFI_THRU_HANDLES_STRING][USB_USBD_STRING];
+	globalSettings.wifiThruHandles[MidiBLE] = (uint8_t)doc[USB_WIFI_THRU_HANDLES_STRING][USB_BLE_STRING];
+	globalSettings.wifiThruHandles[MidiWiFiRTP] = (uint8_t)doc[USB_WIFI_THRU_HANDLES_STRING][USB_WIFI_STRING];
+	globalSettings.wifiThruHandles[MidiSerial1] = (uint8_t)doc[USB_WIFI_THRU_HANDLES_STRING][USB_MIDI1_STRING];
+
+	// MIDI 1 thru handles
+	globalSettings.midi1ThruHandles[MidiUSBD] = (uint8_t)doc[USB_MIDI1_THRU_HANDLES_STRING][USB_USBD_STRING];
+	globalSettings.midi1ThruHandles[MidiBLE] = (uint8_t)doc[USB_MIDI1_THRU_HANDLES_STRING][USB_BLE_STRING];
+	globalSettings.midi1ThruHandles[MidiWiFiRTP] = (uint8_t)doc[USB_MIDI1_THRU_HANDLES_STRING][USB_WIFI_STRING];
+	globalSettings.midi1ThruHandles[MidiSerial1] = (uint8_t)doc[USB_MIDI1_THRU_HANDLES_STRING][USB_MIDI1_STRING];
 
 
 	// MIDI channels

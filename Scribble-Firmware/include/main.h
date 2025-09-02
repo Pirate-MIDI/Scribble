@@ -1,6 +1,7 @@
 #ifndef MAIN_H
 #define MAIN_H
 #include "stdint.h"
+#include "esp32_manager.h"
 #include "midi_handling.h"
 
 #define NUM_PRESETS 			128
@@ -10,10 +11,7 @@
 #define BLE_MIDI_DEVICE_NAME 	"Scribble-BLE"
 #define RTP_SESSION_NAME		"Scribble-RTP"
 
-// MIDI interface indices for thru routing
-#define MIDI_TRS					0	
-#define MIDI_BLE					1	
-#define NUM_MIDI_INTERFACES	2	// TRS, BLE
+#define NUM_MIDI_INTERFACES			4	// USBD, BLE, WiFi, Serial1
 #define MIDI_INDICATOR_ON_TIME		80 // Time in milliseconds for MIDI indicator to stay on
 
 #define MIDI_CLOCK_PRESET		0
@@ -34,6 +32,12 @@
 #define NUM_PRESET_MESSAGES			8
 #define NUM_CUSTOM_MESSAGES			8
 
+// MIDI map
+#define PRESET_UP_CC					0x01
+#define PRESET_DOWN_CC				0x02
+#define PRESET_SELECT_CC			0x03
+#define CUSTOM_PRESET_STACK_CC	0x10
+#define CUSTOM_GLOBAL_STACK_CC	0x11
 
 typedef enum
 {
@@ -43,6 +47,17 @@ typedef enum
 	SwitchHoldPresetDown,
 	SwitchCustom
 } SwitchMode;
+
+typedef struct
+{
+	// MIDI interface to send the message on
+	// Bit maskng is used to preserve memory and allow multiple interfaces
+	// Bit 0 = USBD, Bit 1 = BLE, Bit 2 = WiFi, Bit 3 = Serial1
+	uint8_t midiInterface;		
+	uint8_t statusByte;
+	uint8_t data1Byte;
+	uint8_t data2Byte;
+} MidiMessage;
 
 typedef struct
 {
@@ -66,8 +81,13 @@ typedef struct
 	uint8_t midiOutMode; 			// 0 = Type A, 1 = Type B
 	uint8_t clockMode;				
 	uint8_t clockDisplayType;		// 0 = BPM, 1 = millisecond, 2 = flashing indicator
-	uint8_t midiTrsThruHandles[NUM_MIDI_INTERFACES];
-	uint8_t midiBleThruHandles[NUM_MIDI_INTERFACES];
+	
+	// MIDI thru handles
+	uint8_t usbdThruHandles[NUM_MIDI_INTERFACES];
+	uint8_t bleThruHandles[NUM_MIDI_INTERFACES];
+	uint8_t wifiThruHandles[NUM_MIDI_INTERFACES];
+	uint8_t midi1ThruHandles[NUM_MIDI_INTERFACES];
+
 	uint8_t midiClockOutHandles[NUM_MIDI_INTERFACES];
 	MidiMessage switchPressMessages[2][NUM_SWITCH_MESSAGES];
 	MidiMessage switchHoldMessages[2][NUM_SWITCH_MESSAGES];
@@ -80,13 +100,16 @@ typedef struct
 
 	// Connectivity settings
 	uint8_t wirelessType;			// 0 = None, 1 = BLE
+
+	// ESP32 manager
+	Esp32ManagerConfig esp32ManagerConfig;
 } GlobalSettings;
 
 typedef struct
 {
 	uint32_t id;							// Preset ID;
-	char name[16+1];							// Preset name
-	char secondaryText[16+1];				// Secondary text info
+	char name[16+1];						// Preset name
+	char secondaryText[16+1];			// Secondary text info
 	uint8_t colourOverrideFlag;		// 0 = use main colour, 1 = use preset colour override
 	uint16_t colourOverride;			// Main UI colour override (16-bit RGB565)
 	uint8_t textColourOverrideFlag;	// 0 = use main colour, 1 = use preset colour override
@@ -105,15 +128,15 @@ extern GlobalSettings globalSettings;
 extern Preset presets[];
 
 
-void midi_ControlChangeHandler(byte channel, byte number, byte value);
-void midi_ProgramChangeHandler(byte channel, byte number);
-void midi_SysExHandler(byte* data, unsigned length);
-void midi_ClockHandler();
+void controlChangeHandler(MidiInterfaceType interface, byte channel, byte number, byte value);
+void programChangeHandler(MidiInterfaceType interface, byte channel, byte number);
+void sysExHandler(MidiInterfaceType interface, byte* data, unsigned length);
+
+void sendMidiMessage(MidiMessage message);
 
 void presetUp();
 void presetDown();
 void goToPreset(uint16_t presetIndex);
-void savePresets();
 void enterBootloader();
 void factoryReset();
 
