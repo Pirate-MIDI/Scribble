@@ -39,6 +39,7 @@ void setup()
 	Serial.setRxBufferSize(8192);
 	ESP_LOGI("MAIN", "Starting setup...");
 	assignMidiCallbacks();
+	esp32ConfigPtr = &globalSettings.esp32ManagerConfig;
 	esp32Manager_Init();
 	// Assign global and preset settings and boot the file system
 	esp32Settings_AssignDefaultGlobalSettings(defaultGlobalSettingsAssignment);
