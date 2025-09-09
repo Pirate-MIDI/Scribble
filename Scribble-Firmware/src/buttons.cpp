@@ -22,7 +22,7 @@ void buttons_Init()
 	// Configure the pins and interrupts
 	pinMode(SWITCH1_PIN, INPUT);
 	pinMode(SWITCH2_PIN, INPUT);
-	switch1.begin(SWITCH1_PIN, INPUT, true);
+	switch1.begin(SWITCH1_PIN, INPUT_PULLUP, true);
 	switch2.begin(SWITCH2_PIN, INPUT, true);
 	switch1.setClickHandler(switch1Press);
 	switch2.setClickHandler(switch2Press);

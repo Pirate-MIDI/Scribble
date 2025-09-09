@@ -13,7 +13,7 @@
 #define LCD_RST_PIN			45
 #define LCD_BL_PIN			46
 
-#define SWITCH1_PIN			2
+#define SWITCH1_PIN			6
 #define SWITCH2_PIN			0
 
 

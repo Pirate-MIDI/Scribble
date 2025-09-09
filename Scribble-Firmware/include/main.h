@@ -19,9 +19,6 @@
 #define MIDI_CLOCK_GLOBAL		2
 #define MIDI_CLOCK_OFF			3
 
-#define WIRELESS_MODE_NONE		0
-#define WIRELESS_MODE_BLE		1
-
 #define UI_MODE_LIGHT		0
 #define UI_MODE_DARK			1
 #define UI_MODE_AUTO			2
@@ -97,9 +94,6 @@ typedef struct
 	uint8_t goToPresetCC;
 	uint8_t globalCustomMessagesCC;
 	uint8_t presetCustomMessagesCC;
-
-	// Connectivity settings
-	uint8_t wirelessType;			// 0 = None, 1 = BLE
 
 	// ESP32 manager
 	Esp32ManagerConfig esp32ManagerConfig;

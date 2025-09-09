@@ -11,6 +11,7 @@
 #include "device_api.h"
 #include "buttons.h"
 #include "midi_clock.h"
+#include "wifi_management.h"
 
 static const char* MAIN_TAG = "MAIN";
 
@@ -38,13 +39,15 @@ void setup()
 	Serial.begin(115200);
 	Serial.setRxBufferSize(8192);
 	ESP_LOGI("MAIN", "Starting setup...");
-	assignMidiCallbacks();
 	esp32ConfigPtr = &globalSettings.esp32ManagerConfig;
-	esp32Manager_Init();
+
 	// Assign global and preset settings and boot the file system
 	esp32Settings_AssignDefaultGlobalSettings(defaultGlobalSettingsAssignment);
 	esp32Settings_AssignDefaultPresetSettings(defaultPresetsAssignment);
 	esp32Settings_BootCheck(&globalSettings, sizeof(GlobalSettings), presets, sizeof(Preset), NUM_PRESETS, &globalSettings.bootState);
+
+	assignMidiCallbacks();
+	esp32Manager_Init();
 
 	display_Init();
 
@@ -81,11 +84,12 @@ void setup()
 		1); // pin task to core 1 
 	ESP_LOGI(MAIN_TAG, "Device API task created: %d", taskResult);
 
-	
-	
-	midi_Init();
-	clock_Init();
+	esp32Manager_CreateTasks();
+	//midi_Init();
+	//clock_Init();
 	buttons_Init();
+	ESP_LOGV(MAIN_TAG, "Total heap: %d", ESP.getHeapSize());
+	ESP_LOGV(MAIN_TAG, "Free heap: %d\n", ESP.getFreeHeap());
 }
 
 void loop()
@@ -145,7 +149,7 @@ void defaultGlobalSettingsAssignment()
 	globalSettings.globalCustomMessagesCC = CUSTOM_GLOBAL_STACK_CC;
 	globalSettings.presetCustomMessagesCC = CUSTOM_PRESET_STACK_CC;
 
-	globalSettings.wirelessType = WIRELESS_MODE_BLE;
+	globalSettings.esp32ManagerConfig.wirelessType = Esp32WiFi;
 
 	// Set all message stacks to empty
 	for(uint8_t i=0; i<NUM_SWITCH_MESSAGES; i++)
@@ -385,13 +389,21 @@ void indicatorTask(void* parameter)
 		{
 			if(bleConnected)
 			{
-				display_DrawWirelessIndicator(WIRELESS_MODE_BLE, 1); // BLE connected
+				display_DrawWirelessIndicator(Esp32BLE, 1); // BLE connected
 			}
 			else
 			{
-				display_DrawWirelessIndicator(WIRELESS_MODE_BLE, 0); // BLE disconnected
+				display_DrawWirelessIndicator(Esp32BLE, 0); // BLE disconnected
 			}
 			newBleEvent = 0;
+		}
+		if(newWifiEvent)
+		{
+			if(globalSettings.esp32ManagerConfig.wirelessType == Esp32WiFi)
+			{
+				display_DrawWirelessIndicator(globalSettings.esp32ManagerConfig.wirelessType, esp32Info.wifiConnected);
+			}
+			newWifiEvent = 0;
 		}
 		// New MIDI clock event
 		if(newClockEvent)

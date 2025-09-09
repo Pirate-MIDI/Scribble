@@ -79,7 +79,14 @@ void display_DrawMainScreen()
 
 	// Connectivity states
 	// Wireless state
-	display_DrawWirelessIndicator(globalSettings.wirelessType, 0);
+	if(globalSettings.esp32ManagerConfig.wirelessType == Esp32WiFi)
+	{
+		display_DrawWirelessIndicator(globalSettings.esp32ManagerConfig.wirelessType, esp32Info.wifiConnected);
+	}
+	else if(globalSettings.esp32ManagerConfig.wirelessType == Esp32BLE)
+	{
+		display_DrawWirelessIndicator(globalSettings.esp32ManagerConfig.wirelessType, esp32Info.bleConnected);
+	}
 	// MIDI
 	display_DrawMidiIndicator(false);
 
@@ -96,7 +103,7 @@ void display_DrawPresetNumber(uint16_t	 presetNumber)
 	int16_t yOffset;
 	if(globalSettings.uiLightMode == UI_MODE_DARK)
 	{
-		lcd.fillRect(LCD_WIDTH, 0, -(LCD_WIDTH - 60), -INFO_BAR_HEIGHT, ST77XX_BLACK);
+		lcd.fillRect(LCD_WIDTH-100, 0, 100, INFO_BAR_HEIGHT, ST77XX_BLACK);
 		lcd.setTextColor(ST77XX_WHITE);
 	}
 	else if(globalSettings.uiLightMode == UI_MODE_LIGHT)
@@ -199,7 +206,7 @@ void display_DrawMidiIndicator(bool active)
 // State: 0 = disconnected, 1 = connected, 2 = AP (WiFi only)
 void display_DrawWirelessIndicator(uint8_t type, uint8_t state)
 {
-	if(type == WIRELESS_MODE_BLE)
+	if(type == Esp32BLE)
 	{
 		if(state == 0)
 		{
@@ -218,7 +225,43 @@ void display_DrawWirelessIndicator(uint8_t type, uint8_t state)
 			lcd.fillCircle((LCD_WIDTH/2) + (CIRCLE_INDICATOR_SIZE + CIRCLE_INDIACTOR_X_OFFSET), (INFO_BAR_HEIGHT)/2, CIRCLE_INDICATOR_SIZE, BLE_INDICATOR_COLOUR);
 		}
 	}
-	else if(type == WIRELESS_MODE_NONE)
+	else if(type == Esp32WiFi)
+	{
+		// Circle outline
+		if(state == 0)
+		{
+			if(globalSettings.uiLightMode == UI_MODE_DARK)
+			{
+				lcd.fillCircle((LCD_WIDTH/2) + (CIRCLE_INDICATOR_SIZE + CIRCLE_INDIACTOR_X_OFFSET), (INFO_BAR_HEIGHT)/2, CIRCLE_INDICATOR_SIZE, ST77XX_BLACK);
+			}
+			else if(globalSettings.uiLightMode == UI_MODE_LIGHT)
+			{
+				lcd.fillCircle((LCD_WIDTH/2) + (CIRCLE_INDICATOR_SIZE + CIRCLE_INDIACTOR_X_OFFSET), (INFO_BAR_HEIGHT)/2, CIRCLE_INDICATOR_SIZE, ST77XX_WHITE);
+			}
+			lcd.drawCircle((LCD_WIDTH/2) + (CIRCLE_INDICATOR_SIZE + CIRCLE_INDIACTOR_X_OFFSET), (INFO_BAR_HEIGHT)/2, CIRCLE_INDICATOR_SIZE, WIFI_INDICATOR_COLOUR);
+		}
+		// Solid circle
+		else if(state == 1 || state == 2)
+		{
+			lcd.fillCircle((LCD_WIDTH/2) + (CIRCLE_INDICATOR_SIZE + CIRCLE_INDIACTOR_X_OFFSET), (INFO_BAR_HEIGHT)/2, CIRCLE_INDICATOR_SIZE, WIFI_INDICATOR_COLOUR);
+		}
+		// Circle outline with dot in the middle
+		else if(state == 3)
+		{
+			if(globalSettings.uiLightMode == UI_MODE_DARK)
+			{
+				lcd.fillCircle((LCD_WIDTH/2) + (CIRCLE_INDICATOR_SIZE + CIRCLE_INDIACTOR_X_OFFSET), (INFO_BAR_HEIGHT)/2, CIRCLE_INDICATOR_SIZE, ST77XX_BLACK);
+			}
+			else if(globalSettings.uiLightMode == UI_MODE_LIGHT)
+			{
+				lcd.fillCircle((LCD_WIDTH/2) + (CIRCLE_INDICATOR_SIZE + CIRCLE_INDIACTOR_X_OFFSET), (INFO_BAR_HEIGHT)/2, CIRCLE_INDICATOR_SIZE, ST77XX_WHITE);
+			}
+			lcd.drawCircle((LCD_WIDTH/2) + (CIRCLE_INDICATOR_SIZE + CIRCLE_INDIACTOR_X_OFFSET), (INFO_BAR_HEIGHT)/2, CIRCLE_INDICATOR_SIZE, WIFI_INDICATOR_COLOUR);
+			lcd.fillCircle((LCD_WIDTH/2) + (CIRCLE_INDICATOR_SIZE + CIRCLE_INDIACTOR_X_OFFSET), (INFO_BAR_HEIGHT)/2, CIRCLE_INDICATOR_SIZE/2, WIFI_INDICATOR_COLOUR);
+		}
+		
+	}
+	else if(type == Esp32None)
 	{
 		if(state == 0)
 		{

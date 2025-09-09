@@ -8,6 +8,7 @@
 #include "main.h"
 #include "esp_log.h"
 #include "esp32_settings.h"
+#include "wifi_management.h"
 
 
 // Transmit functions
@@ -102,8 +103,10 @@ void sendGlobalSettings(uint8_t transport)
 		doc["midiOutPortMode"] = "midiOutB";
 
 	// Wireless config
-	if(globalSettings.wirelessType == WIRELESS_MODE_BLE)
+	if(globalSettings.esp32ManagerConfig.wirelessType == Esp32BLE)
 		doc["wirelessType"] = "ble";
+	else if(globalSettings.esp32ManagerConfig.wirelessType == Esp32WiFi)
+		doc["wirelessType"] = "wifi";
 	else
 		doc["wirelessType"] = "none";
 
@@ -243,11 +246,15 @@ void parseGlobalSettings(char* appData, uint8_t transport)
 	// ESP32 Manager config
 	if(strcmp(doc["wirelessType"], "ble") == 0)
 	{
-		globalSettings.wirelessType = WIRELESS_MODE_BLE;
+		globalSettings.esp32ManagerConfig.wirelessType = Esp32BLE;
+	}
+	else if(strcmp(doc["wirelessType"], "wifi") == 0)
+	{
+		globalSettings.esp32ManagerConfig.wirelessType = Esp32WiFi;
 	}
 	else
 	{
-		globalSettings.wirelessType = WIRELESS_MODE_NONE;
+		globalSettings.esp32ManagerConfig.wirelessType = Esp32None;
 	}
 
 	esp32Settings_SaveGlobalSettings();
