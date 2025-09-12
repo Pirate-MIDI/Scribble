@@ -100,10 +100,12 @@ void clock_OnSync24Callback(uint32_t tick)
 
 		if(globalSettings.midiClockOutHandles[MidiBLE])
 			midi_SendMessage(MidiBLE, midi::Clock, 0, 0, 0);
-			
+
+#ifdef USE_WIFI_RTP_MIDI
 		if(globalSettings.midiClockOutHandles[MidiWiFiRTP])
 			midi_SendMessage(MidiWiFiRTP, midi::Clock, 0, 0, 0);
-		
+#endif
+
 		if(globalSettings.midiClockOutHandles[MidiSerial1])
 			midi_SendMessage(MidiSerial1, midi::Clock, 0, 0, 0);
 	}
@@ -139,9 +141,11 @@ void clock_OnClockStart()
 		if(globalSettings.midiClockOutHandles[MidiBLE])
 			midi_SendMessage(MidiBLE, midi::Clock, 0, 0, 0);
 			
+#ifdef USE_WIFI_RTP_MIDI
 		if(globalSettings.midiClockOutHandles[MidiWiFiRTP])
 			midi_SendMessage(MidiWiFiRTP, midi::Clock, 0, 0, 0);
-		
+#endif		
+
 		if(globalSettings.midiClockOutHandles[MidiSerial1])
 			midi_SendMessage(MidiSerial1, midi::Clock, 0, 0, 0);
 	}
@@ -158,9 +162,11 @@ void clock_OnClockStop()
 
 		if(globalSettings.midiClockOutHandles[MidiBLE])
 			midi_SendMessage(MidiBLE, midi::Clock, 0, 0, 0);
-			
+
+#ifdef USE_WIFI_RTP_MIDI			
 		if(globalSettings.midiClockOutHandles[MidiWiFiRTP])
 			midi_SendMessage(MidiWiFiRTP, midi::Clock, 0, 0, 0);
+#endif
 		
 		if(globalSettings.midiClockOutHandles[MidiSerial1])
 			midi_SendMessage(MidiSerial1, midi::Clock, 0, 0, 0);

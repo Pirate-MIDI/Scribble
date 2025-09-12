@@ -61,7 +61,7 @@ void switchPressHandler(uint8_t switchIndex)
 	// Global
 	for(uint8_t i=0; i<NUM_SWITCH_MESSAGES; i++)
 	{
-		if(globalSettings.switchPressMessages[switchIndex][i].statusByte == 0)
+		if(globalSettings.switchPressMessages[switchIndex][i].status == 0)
 			break;
 
 		sendMidiMessage(globalSettings.switchPressMessages[switchIndex][i]);
@@ -69,7 +69,7 @@ void switchPressHandler(uint8_t switchIndex)
 	// Preset
 	for(uint8_t i=0; i<NUM_SWITCH_MESSAGES; i++)
 	{
-		if(presets[globalSettings.currentPreset].switchPressMessages[switchIndex][i].statusByte == 0)
+		if(presets[globalSettings.currentPreset].switchPressMessages[switchIndex][i].status == 0)
 			break;
 
 		sendMidiMessage(presets[globalSettings.currentPreset].switchPressMessages[switchIndex][i]);
@@ -102,7 +102,7 @@ void switchHoldHandler(uint8_t switchIndex)
 	// Global
 	for(uint8_t i=0; i<NUM_SWITCH_MESSAGES; i++)
 	{
-		if(globalSettings.switchHoldMessages[switchIndex][i].statusByte == 0)
+		if(globalSettings.switchHoldMessages[switchIndex][i].status == 0)
 			break;
 
 		sendMidiMessage(globalSettings.switchHoldMessages[switchIndex][i]);
@@ -110,7 +110,7 @@ void switchHoldHandler(uint8_t switchIndex)
 	// Preset
 	for(uint8_t i=0; i<NUM_SWITCH_MESSAGES; i++)
 	{
-		if(presets[globalSettings.currentPreset].switchHoldMessages[switchIndex][i].statusByte == 0)
+		if(presets[globalSettings.currentPreset].switchHoldMessages[switchIndex][i].status == 0)
 			break;
 
 		sendMidiMessage(presets[globalSettings.currentPreset].switchHoldMessages[switchIndex][i]);

@@ -8,8 +8,16 @@
 #include "main.h"
 #include "esp_log.h"
 #include "esp32_settings.h"
+#include "ota_updating.h"
 #include "wifi_management.h"
 
+static const char* DEVICE_API_TAG = "Device API";
+
+const char *midiInterfaceStrings[NUM_MIDI_INTERFACES] = {	USB_USB_STRING,
+																				USB_BLE_STRING,
+																				USB_MIDI1_STRING};
+
+void packMessageStack(const JsonArray& jsonArray, MidiMessage* messages, uint16_t numMessages);
 
 // Transmit functions
 void sendCheckResponse(uint8_t transport)
@@ -24,8 +32,6 @@ void sendCheckResponse(uint8_t transport)
 	doc["uId"] = ((ESP.getEfuseMac() << 40) >> 40);
 	doc["deviceName"] = "Scribble";
 	doc["profileId"] = 0;
-
-	// ESP32 Manager info
 
 
 	if(transport == USB_CDC_TRANSPORT)
@@ -54,39 +60,22 @@ void sendGlobalSettings(uint8_t transport)
 		doc["lightMode"] = "dark";
 	else if(globalSettings.uiLightMode == UI_MODE_LIGHT)
 		doc["lightMode"] = "light";
-	else
-		doc["lightMode"] = "auto";
 
 	doc["mainColour"] = globalSettings.mainColour;
-
-	// MIDI USBD thru handles
-	doc[USB_USBD_THRU_HANDLES_STRING][USB_USBD_STRING] = (bool)globalSettings.usbdThruHandles[MidiUSBD];
-	doc[USB_USBD_THRU_HANDLES_STRING][USB_BLE_STRING] = (bool)globalSettings.usbdThruHandles[MidiBLE];
-	doc[USB_USBD_THRU_HANDLES_STRING][USB_WIFI_STRING] = (bool)globalSettings.usbdThruHandles[MidiWiFiRTP];
-	doc[USB_USBD_THRU_HANDLES_STRING][USB_MIDI1_STRING] = (bool)globalSettings.usbdThruHandles[MidiSerial1];
-
-	// BLE thru handles
-	doc[USB_BLE_THRU_HANDLES_STRING][USB_USBD_STRING] = (bool)globalSettings.bleThruHandles[MidiUSBD];
-	doc[USB_BLE_THRU_HANDLES_STRING][USB_BLE_STRING] = (bool)globalSettings.bleThruHandles[MidiBLE];
-	doc[USB_BLE_THRU_HANDLES_STRING][USB_WIFI_STRING] = (bool)globalSettings.bleThruHandles[MidiWiFiRTP];
-	doc[USB_BLE_THRU_HANDLES_STRING][USB_MIDI1_STRING] = (bool)globalSettings.bleThruHandles[MidiSerial1];
-
-	// MIDI WiFi thru handles
-	doc[USB_WIFI_THRU_HANDLES_STRING][USB_USBD_STRING] = (bool)globalSettings.wifiThruHandles[MidiUSBD];
-	doc[USB_WIFI_THRU_HANDLES_STRING][USB_BLE_STRING] = (bool)globalSettings.wifiThruHandles[MidiBLE];
-	doc[USB_WIFI_THRU_HANDLES_STRING][USB_WIFI_STRING] = (bool)globalSettings.wifiThruHandles[MidiWiFiRTP];
-	doc[USB_WIFI_THRU_HANDLES_STRING][USB_MIDI1_STRING] = (bool)globalSettings.wifiThruHandles[MidiSerial1];
-
-	// MIDI TRS thru handles
-	doc[USB_MIDI1_THRU_HANDLES_STRING][USB_USBD_STRING] = (bool)globalSettings.midi1ThruHandles[MidiUSBD];
-	doc[USB_MIDI1_THRU_HANDLES_STRING][USB_BLE_STRING] = (bool)globalSettings.midi1ThruHandles[MidiBLE];
-	doc[USB_MIDI1_THRU_HANDLES_STRING][USB_WIFI_STRING] = (bool)globalSettings.midi1ThruHandles[MidiWiFiRTP];
-	doc[USB_MIDI1_THRU_HANDLES_STRING][USB_MIDI1_STRING] = (bool)globalSettings.midi1ThruHandles[MidiSerial1];
+	doc["textColour"] = globalSettings.textColour;
+	doc["displayBrightness"] = globalSettings.displayBrightness;
 
 	// MIDI channels
 	doc[USB_MIDI_CHANNEL_STRING] = globalSettings.midiChannel;
 	doc["globalBpm"] = globalSettings.globalBpm;
 
+	// MIDI out port mode
+	if(globalSettings.midiOutMode == MIDI_OUT_TYPE_A)
+		doc["midiOutPortMode"] = "midiOutA";
+	else if(globalSettings.midiOutMode == MIDI_OUT_TYPE_B)
+		doc["midiOutPortMode"] = "midiOutB";
+
+	// MIDI clock mode	
 	if(globalSettings.clockMode == MIDI_CLOCK_PRESET)
 		doc["clockMode"] = "preset";
 	else if(globalSettings.clockMode == MIDI_CLOCK_EXTERNAL)
@@ -94,13 +83,74 @@ void sendGlobalSettings(uint8_t transport)
 	else if(globalSettings.clockMode == MIDI_CLOCK_GLOBAL)
 		doc["clockMode"] = "global";
 	else
-		doc["clockMode"] = "none";
+		doc["clockMode"] = "none";	
 
-	// MIDI out port mode
-	if(globalSettings.midiOutMode == MIDI_OUT_TYPE_A)
-		doc["midiOutPortMode"] = "midiOutA";
-	else if(globalSettings.midiOutMode == MIDI_OUT_TYPE_B)
-		doc["midiOutPortMode"] = "midiOutB";
+	// MIDI clock display type
+	if(globalSettings.clockDisplayType == MIDI_CLOCK_DISPLAY_BPM)
+		doc["clockDisplayType"] = "bpm";
+	else if(globalSettings.clockDisplayType == MIDI_CLOCK_DISPLAY_MS)
+		doc["clockDisplayType"] = "ms";
+	else
+		doc["clockDisplayType"] = "indicator";
+
+	// MIDI USBD thru handles
+	doc[USB_USBD_THRU_HANDLES_STRING][USB_USBD_STRING] = (bool)globalSettings.usbdThruHandles[MidiUSBD];
+	doc[USB_USBD_THRU_HANDLES_STRING][USB_BLE_STRING] = (bool)globalSettings.usbdThruHandles[MidiBLE];
+	//doc[USB_USBD_THRU_HANDLES_STRING][USB_WIFI_STRING] = (bool)globalSettings.usbdThruHandles[MidiWiFiRTP];
+	doc[USB_USBD_THRU_HANDLES_STRING][USB_MIDI1_STRING] = (bool)globalSettings.usbdThruHandles[MidiSerial1];
+
+	// BLE thru handles
+	doc[USB_BLE_THRU_HANDLES_STRING][USB_USBD_STRING] = (bool)globalSettings.bleThruHandles[MidiUSBD];
+	doc[USB_BLE_THRU_HANDLES_STRING][USB_BLE_STRING] = (bool)globalSettings.bleThruHandles[MidiBLE];
+	//doc[USB_BLE_THRU_HANDLES_STRING][USB_WIFI_STRING] = (bool)globalSettings.bleThruHandles[MidiWiFiRTP];
+	doc[USB_BLE_THRU_HANDLES_STRING][USB_MIDI1_STRING] = (bool)globalSettings.bleThruHandles[MidiSerial1];
+
+	// MIDI WiFi thru handles
+	//doc[USB_WIFI_THRU_HANDLES_STRING][USB_USBD_STRING] = (bool)globalSettings.wifiThruHandles[MidiUSBD];
+	//doc[USB_WIFI_THRU_HANDLES_STRING][USB_BLE_STRING] = (bool)globalSettings.wifiThruHandles[MidiBLE];
+	//doc[USB_WIFI_THRU_HANDLES_STRING][USB_WIFI_STRING] = (bool)globalSettings.wifiThruHandles[MidiWiFiRTP];
+	//doc[USB_WIFI_THRU_HANDLES_STRING][USB_MIDI1_STRING] = (bool)globalSettings.wifiThruHandles[MidiSerial1];
+
+	// MIDI TRS thru handles
+	doc[USB_MIDI1_THRU_HANDLES_STRING][USB_USBD_STRING] = (bool)globalSettings.midi1ThruHandles[MidiUSBD];
+	doc[USB_MIDI1_THRU_HANDLES_STRING][USB_BLE_STRING] = (bool)globalSettings.midi1ThruHandles[MidiBLE];
+	//doc[USB_MIDI1_THRU_HANDLES_STRING][USB_WIFI_STRING] = (bool)globalSettings.midi1ThruHandles[MidiWiFiRTP];
+	doc[USB_MIDI1_THRU_HANDLES_STRING][USB_MIDI1_STRING] = (bool)globalSettings.midi1ThruHandles[MidiSerial1];
+
+	// MIDI clock output handles
+	doc[USB_MIDI_CLOCK_OUT_HANDLES_STRING][USB_USBD_STRING] = (bool)globalSettings.midiClockOutHandles[MidiUSBD];
+	doc[USB_MIDI_CLOCK_OUT_HANDLES_STRING][USB_BLE_STRING] = (bool)globalSettings.midiClockOutHandles[MidiBLE];
+	//doc[USB_MIDI_CLOCK_OUT_HANDLES_STRING][USB_WIFI_STRING] = (bool)globalSettings.midiClockOutHandles[MidiWiFiRTP];
+	doc[USB_MIDI_CLOCK_OUT_HANDLES_STRING][USB_MIDI1_STRING] = (bool)globalSettings.midiClockOutHandles[MidiSerial1];
+
+
+	// Message stacks
+	for(uint8_t i=0; i<2; i++)
+	{
+		if(globalSettings.switchMode[i] == SwitchPressPresetUp)
+			doc["switches"][i]["mode"] = "pressPresetUp";
+		else if(globalSettings.switchMode[i] == SwitchPressPresetDown)
+			doc["switches"][i]["mode"] = "pressPresetDown";
+		else if(globalSettings.switchMode[i] == SwitchHoldPresetUp)
+			doc["switches"][i]["mode"] = "holdPresetUp";
+		else if(globalSettings.switchMode[i] == SwitchHoldPresetDown)
+			doc["switches"][i]["mode"] = "holdPresetDown";
+		else
+			doc["switches"][i]["mode"] = "messagesOnly";
+			
+		// Press messages
+		doc["switches"][i]["pressMessages"]["numMessages"] = globalSettings.numSwitchPressMessages[i];
+		packMessageStack(	doc["switches"][i]["pressMessages"]["messages"].to<JsonArray>(),
+									globalSettings.switchPressMessages[i], globalSettings.numSwitchPressMessages[i]);
+		// Hold messages
+		doc["switches"][i]["holdMessages"]["numMessages"] = globalSettings.numSwitchHoldMessages[i];
+		packMessageStack(	doc["switches"][i]["holdMessages"]["messages"].to<JsonArray>(),
+									globalSettings.switchHoldMessages[i], globalSettings.numSwitchHoldMessages[i]);
+	}	
+	// Custom messages
+	doc["customMessages"]["numMessages"] = globalSettings.numCustomMessages;
+	packMessageStack(	doc["customMessages"]["messages"].to<JsonArray>(),
+										globalSettings.customMessages, globalSettings.numCustomMessages);
 
 	// Wireless config
 	if(globalSettings.esp32ManagerConfig.wirelessType == Esp32BLE)
@@ -109,6 +159,24 @@ void sendGlobalSettings(uint8_t transport)
 		doc["wirelessType"] = "wifi";
 	else
 		doc["wirelessType"] = "none";
+
+	if(globalSettings.esp32ManagerConfig.bleMode == Esp32BLEServer)
+		doc["bleMode"] = "server";
+	else
+		doc["bleMode"] = "client";
+
+	// Static IP
+	doc["useStaticIP"] = (bool)globalSettings.esp32ManagerConfig.useStaticIp;
+
+	doc["staticIP"] = (String(globalSettings.esp32ManagerConfig.staticIp[0]) + "." +
+							String(globalSettings.esp32ManagerConfig.staticIp[1]) + "." +
+							String(globalSettings.esp32ManagerConfig.staticIp[2]) + "." +
+							String(globalSettings.esp32ManagerConfig.staticIp[3]));
+
+	doc["staticGateway"] = (String(globalSettings.esp32ManagerConfig.staticGatewayIp[0]) + "." +
+									String(globalSettings.esp32ManagerConfig.staticGatewayIp[1]) + "." +
+									String(globalSettings.esp32ManagerConfig.staticGatewayIp[2]) + "." +
+									String(globalSettings.esp32ManagerConfig.staticGatewayIp[3]));
 
 	
 	if(transport == USB_CDC_TRANSPORT)
@@ -129,12 +197,37 @@ void sendGlobalSettings(uint8_t transport)
 void sendBankSettings(int bankNum, uint8_t transport)
 {
 	JsonDocument doc;
-	doc["colourOverride"] = (bool)presets[bankNum].colourOverrideFlag;
-	doc["colour"] = presets[bankNum].colourOverride;
+	doc["id"] = presets[bankNum].id;
 	doc["name"] = presets[bankNum].name;
 	doc["secondaryText"] = presets[bankNum].secondaryText;
-	doc["bpm"] = presets[bankNum].bpm;
+
+	doc["colourOverride"] = (bool)presets[bankNum].colourOverrideFlag;
+	doc["colour"] = presets[bankNum].colourOverride;
+	doc["textColourOverride"] = (bool)presets[bankNum].textColourOverrideFlag;
+	doc["textColour"] = presets[bankNum].textColourOverride;
 	
+	doc["bpm"] = presets[bankNum].bpm;
+
+	for(uint8_t i=0; i<2; i++)
+	{
+		// Press messages
+		doc["switches"][i]["pressMessages"]["numMessages"] = presets[bankNum].numSwitchPressMessages[i];
+		packMessageStack(	doc["switches"][i]["pressMessages"]["messages"].to<JsonArray>(),
+									presets[bankNum].switchPressMessages[i], presets[bankNum].numSwitchPressMessages[i]);
+		// Hold messages
+		doc["switches"][i]["holdMessages"]["numMessages"] = presets[bankNum].numSwitchHoldMessages[i];
+		packMessageStack(	doc["switches"][i]["holdMessages"]["messages"].to<JsonArray>(),
+									presets[bankNum].switchHoldMessages[i], presets[bankNum].numSwitchHoldMessages[i]);
+	}	
+	// Custom messages
+	doc["customMessages"]["numMessages"] = presets[bankNum].numCustomMessages;
+	packMessageStack(	doc["customMessages"]["messages"].to<JsonArray>(),
+										presets[bankNum].customMessages, presets[bankNum].numCustomMessages);
+
+	// Preset messages
+	doc["presetMessages"]["numMessages"] = presets[bankNum].numPresetMessages;
+	packMessageStack(	doc["presetMessages"]["messages"].to<JsonArray>(),
+										presets[bankNum].presetMessages, presets[bankNum].numPresetMessages);
 
 	if(transport == USB_CDC_TRANSPORT)
 	{
@@ -195,53 +288,58 @@ void parseGlobalSettings(char* appData, uint8_t transport)
 
 	const char* newDeviceName = doc[USB_DEVICE_NAME_STRING];
 	strcpy(globalSettings.deviceName, newDeviceName);
-	globalSettings.currentPreset = doc[USB_CURRENT_BANK_STRING];
+	//globalSettings.currentPreset = doc[USB_CURRENT_BANK_STRING];
 	globalSettings.profileId = doc[USB_PROFILE_ID_STRING];
 	
 	if(strcmp(doc["lightMode"], "light") == 0)
 		globalSettings.uiLightMode = UI_MODE_LIGHT;
 	else if(strcmp(doc["lightMode"], "dark") == 0)
 		globalSettings.uiLightMode = UI_MODE_DARK;
-	else
-		globalSettings.uiLightMode = UI_MODE_AUTO;
 
-	globalSettings.pedalModel = doc["pedalModel"];
 	globalSettings.mainColour = doc["mainColour"];
-
-	// USBD thru handles
-	globalSettings.usbdThruHandles[MidiUSBD] = (uint8_t)doc[USB_USBD_THRU_HANDLES_STRING][USB_USBD_STRING];
-	globalSettings.usbdThruHandles[MidiBLE] = (uint8_t)doc[USB_USBD_THRU_HANDLES_STRING][USB_BLE_STRING];
-	globalSettings.usbdThruHandles[MidiWiFiRTP] = (uint8_t)doc[USB_USBD_THRU_HANDLES_STRING][USB_WIFI_STRING];
-	globalSettings.usbdThruHandles[MidiSerial1] = (uint8_t)doc[USB_USBD_THRU_HANDLES_STRING][USB_MIDI1_STRING];
-
-	// BLE thru handles
-	globalSettings.bleThruHandles[MidiUSBD] = (uint8_t)doc[USB_BLE_THRU_HANDLES_STRING][USB_USBD_STRING];
-	globalSettings.bleThruHandles[MidiBLE] = (uint8_t)doc[USB_BLE_THRU_HANDLES_STRING][USB_BLE_STRING];
-	globalSettings.bleThruHandles[MidiWiFiRTP] = (uint8_t)doc[USB_BLE_THRU_HANDLES_STRING][USB_WIFI_STRING];
-	globalSettings.bleThruHandles[MidiSerial1] = (uint8_t)doc[USB_BLE_THRU_HANDLES_STRING][USB_MIDI1_STRING];
-
-	// WIFI thru handles
-	globalSettings.wifiThruHandles[MidiUSBD] = (uint8_t)doc[USB_WIFI_THRU_HANDLES_STRING][USB_USBD_STRING];
-	globalSettings.wifiThruHandles[MidiBLE] = (uint8_t)doc[USB_WIFI_THRU_HANDLES_STRING][USB_BLE_STRING];
-	globalSettings.wifiThruHandles[MidiWiFiRTP] = (uint8_t)doc[USB_WIFI_THRU_HANDLES_STRING][USB_WIFI_STRING];
-	globalSettings.wifiThruHandles[MidiSerial1] = (uint8_t)doc[USB_WIFI_THRU_HANDLES_STRING][USB_MIDI1_STRING];
-
-	// MIDI 1 thru handles
-	globalSettings.midi1ThruHandles[MidiUSBD] = (uint8_t)doc[USB_MIDI1_THRU_HANDLES_STRING][USB_USBD_STRING];
-	globalSettings.midi1ThruHandles[MidiBLE] = (uint8_t)doc[USB_MIDI1_THRU_HANDLES_STRING][USB_BLE_STRING];
-	globalSettings.midi1ThruHandles[MidiWiFiRTP] = (uint8_t)doc[USB_MIDI1_THRU_HANDLES_STRING][USB_WIFI_STRING];
-	globalSettings.midi1ThruHandles[MidiSerial1] = (uint8_t)doc[USB_MIDI1_THRU_HANDLES_STRING][USB_MIDI1_STRING];
+	globalSettings.textColour = doc["textColour"];
+	// todo brightness
 
 
 	// MIDI channels
 	globalSettings.midiChannel = doc[USB_MIDI_CHANNEL_STRING];
 	
+	globalSettings.globalBpm = doc["globalBpm"];
+
 	// MIDI out port mode
 	if(strcmp(doc["midiOutPortMode"], "midiOutA") == 0)
 		globalSettings.midiOutMode = MIDI_OUT_TYPE_A;
 	else if(strcmp(doc["midiOutPortMode"], "midiOutB") == 0)
 		globalSettings.midiOutMode = MIDI_OUT_TYPE_B;
 
+	
+
+	// USBD thru handles
+	globalSettings.usbdThruHandles[MidiUSBD] = (uint8_t)doc[USB_USBD_THRU_HANDLES_STRING][USB_USBD_STRING];
+	globalSettings.usbdThruHandles[MidiBLE] = (uint8_t)doc[USB_USBD_THRU_HANDLES_STRING][USB_BLE_STRING];
+	//globalSettings.usbdThruHandles[MidiWiFiRTP] = (uint8_t)doc[USB_USBD_THRU_HANDLES_STRING][USB_WIFI_STRING];
+	globalSettings.usbdThruHandles[MidiSerial1] = (uint8_t)doc[USB_USBD_THRU_HANDLES_STRING][USB_MIDI1_STRING];
+
+	// BLE thru handles
+	globalSettings.bleThruHandles[MidiUSBD] = (uint8_t)doc[USB_BLE_THRU_HANDLES_STRING][USB_USBD_STRING];
+	globalSettings.bleThruHandles[MidiBLE] = (uint8_t)doc[USB_BLE_THRU_HANDLES_STRING][USB_BLE_STRING];
+	//globalSettings.bleThruHandles[MidiWiFiRTP] = (uint8_t)doc[USB_BLE_THRU_HANDLES_STRING][USB_WIFI_STRING];
+	globalSettings.bleThruHandles[MidiSerial1] = (uint8_t)doc[USB_BLE_THRU_HANDLES_STRING][USB_MIDI1_STRING];
+
+	// WIFI thru handles
+	//globalSettings.wifiThruHandles[MidiUSBD] = (uint8_t)doc[USB_WIFI_THRU_HANDLES_STRING][USB_USBD_STRING];
+	//globalSettings.wifiThruHandles[MidiBLE] = (uint8_t)doc[USB_WIFI_THRU_HANDLES_STRING][USB_BLE_STRING];
+	//globalSettings.wifiThruHandles[MidiWiFiRTP] = (uint8_t)doc[USB_WIFI_THRU_HANDLES_STRING][USB_WIFI_STRING];
+	//globalSettings.wifiThruHandles[MidiSerial1] = (uint8_t)doc[USB_WIFI_THRU_HANDLES_STRING][USB_MIDI1_STRING];
+
+	// MIDI 1 thru handles
+	globalSettings.midi1ThruHandles[MidiUSBD] = (uint8_t)doc[USB_MIDI1_THRU_HANDLES_STRING][USB_USBD_STRING];
+	globalSettings.midi1ThruHandles[MidiBLE] = (uint8_t)doc[USB_MIDI1_THRU_HANDLES_STRING][USB_BLE_STRING];
+	//globalSettings.midi1ThruHandles[MidiWiFiRTP] = (uint8_t)doc[USB_MIDI1_THRU_HANDLES_STRING][USB_WIFI_STRING];
+	globalSettings.midi1ThruHandles[MidiSerial1] = (uint8_t)doc[USB_MIDI1_THRU_HANDLES_STRING][USB_MIDI1_STRING];
+
+
+	
 
 	// ESP32 Manager config
 	if(strcmp(doc["wirelessType"], "ble") == 0)
@@ -302,7 +400,7 @@ void ctrlCommandHandler(char* appData, uint8_t transport)
 	if(doc[USB_COMMAND_STRING])
 	{
 		// If there is an array of commands
-		uint8_t numCommands = doc.size();
+		uint8_t numCommands = doc[USB_COMMAND_STRING].size();
 		for(uint16_t i=0; i<numCommands; i++)
 		{
 			// Strings
@@ -340,15 +438,43 @@ void ctrlCommandHandler(char* appData, uint8_t transport)
 				{
 					turnOnBLE();
 				}
-#endif		
-				
+#endif			
 				else if(strcmp(command, USB_FACTORY_RESET_STRING) == 0)
 				{
 					factoryReset();
 				}
+				else if(strcmp(command, "checkFirmwareUpdate") == 0)
+				{
+					ESP32OTAPull ota;
+					int otaCheckResult = ota.CheckForOTAUpdate(OTA_INFO_URL, "0.1.0", ota.DONT_DO_UPDATE);
+					if(otaCheckResult == ESP32OTAPull::UPDATE_AVAILABLE)
+					{
+						ESP_LOGI(DEVICE_API_TAG, "OTA update available");
+						Serial.print("{\"otaResult\":\"updateAvailable\"}");
+					}
+					else if(otaCheckResult == ESP32OTAPull::NO_UPDATE_AVAILABLE)
+					{
+						ESP_LOGI(DEVICE_API_TAG, "No OTA update available");
+						Serial.print("{\"otaResult\":\"noUpdateAvailable\"}");
+					}
+					else
+					{
+						ESP_LOGI(DEVICE_API_TAG, "OTA check result: %d", otaCheckResult);
+						Serial.printf("{\"otaResult\":\"error\"}");
+					}
+				}
+				else if(strcmp(command, "doFirmwareUpdate") == 0)
+				{
+					ESP32OTAPull ota;
+					int otaCheckResult = ota.CheckForOTAUpdate(OTA_INFO_URL, "0.1.0");
+				}
+				else if(strcmp(command, "checkLatestFirmwareVersion") == 0)
+				{
+					Serial.println(ota_GetLatestVersion(OTA_INFO_URL));
+				}
 				else
 				{
-					ESP_LOGD("Device API", "Unknown CTRL command: %s", command);
+					ESP_LOGD(DEVICE_API_TAG, "Unknown CTRL command: %s", command);
 				}
 			}
 			else
@@ -361,8 +487,50 @@ void ctrlCommandHandler(char* appData, uint8_t transport)
 						goToPreset(bankIndex);
 					}
 				}
+				if(!doc[USB_COMMAND_STRING][i]["wifiSsid"].isNull())
+				{
+					const char* ssidPtr = doc[USB_COMMAND_STRING][i]["wifiSsid"];
+					strcpy(globalSettings.wifiSsid, ssidPtr);
+					esp32Settings_SaveGlobalSettings();
+				}
+				if(!doc[USB_COMMAND_STRING][i]["wifiPassword"].isNull())
+				{
+					const char* passwordPtr = doc[USB_COMMAND_STRING][i]["wifiPassword"];
+					strcpy(globalSettings.wifiPassword, passwordPtr);
+					esp32Settings_SaveGlobalSettings();
+				}
 			}
 		}
 	}
 }
 
+void packMessageStack(const JsonArray& jsonArray, MidiMessage* messages, uint16_t numMessages)
+{
+	if(messages == NULL)
+	{
+		return;
+	}
+	// If there are no messages, return an empty array
+	if(numMessages == 0)
+	{
+		//jsonArray[0] = JsonArray();
+		//return;
+	}
+	for(uint16_t i=0; i<numMessages; i++)
+	{
+		// Parse the standard MIDI message component
+		jsonArray[i][USB_STATUS_BYTE_STRING] = messages[i].status;
+		// MIDI outputs
+		// Normal MIDI messages
+		jsonArray[i][USB_DATA_BYTE1_STRING] = messages[i].data1;
+		jsonArray[i][USB_DATA_BYTE2_STRING] = messages[i].data2;
+		for(uint8_t j=0; j<NUM_MIDI_INTERFACES; j++)
+		{
+			jsonArray[i][USB_MIDI_OUTPUTS_STRING][midiInterfaceStrings[j]] = false;
+			if((messages[i].midiInterface>>j) & 1)
+			{
+				jsonArray[i][USB_MIDI_OUTPUTS_STRING][midiInterfaceStrings[j]] = true;
+			}
+		}
+	}
+}

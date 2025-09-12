@@ -138,8 +138,18 @@ void display_DrawBpm(float value)
 	lcd.setTextColor(clockTempoColour);
 	lcd.setCursor(BPM_X_OFFSET, BPM_Y_OFFSET);
 	char bpmString[6];
-	sprintf(bpmString, "%.1f", value);
-	lcd.print(bpmString);
+	if(globalSettings.clockDisplayType == MIDI_CLOCK_DISPLAY_BPM)
+	{
+		sprintf(bpmString, "%.1f", value);
+		lcd.print(bpmString);
+	}
+	else if(globalSettings.clockDisplayType == MIDI_CLOCK_DISPLAY_MS)
+	{
+		sprintf(bpmString, "%.0fms", (60000.0 / value));
+		lcd.print(bpmString);
+	}
+
+	// Ignore for a flashing indicator as that is handled in the indicator task
 }
 
 void display_SetBpmDrawColour(uint16_t colour)

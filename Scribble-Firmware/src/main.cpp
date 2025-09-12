@@ -47,6 +47,9 @@ void setup()
 	esp32Settings_BootCheck(&globalSettings, sizeof(GlobalSettings), presets, sizeof(Preset), NUM_PRESETS, &globalSettings.bootState);
 
 	assignMidiCallbacks();
+	// Check for stored WiFi credentials and attempt to connect
+	//WiFi.persistent(true);
+	//WiFi.begin(globalSettings.wifiSsid, globalSettings.wifiPassword);
 	esp32Manager_Init();
 
 	display_Init();
@@ -73,16 +76,18 @@ void setup()
 		1); // pin task to core 1 
 	ESP_LOGI(MAIN_TAG, "Indicator task created: %d", taskResult);
 
+	/*
 	// Device API task
 	taskResult = xTaskCreatePinnedToCore(
 		deviceApiTask, // Task function. 
 		"Device API Task", // name of task. 
-		70000, // Stack size of task 
+		10000, // Stack size of task 
 		NULL, // parameter of the task 
 		DEVICE_API_TASK_PRIORITY, // priority of the task 
 		NULL, // Task handle to keep track of created task 
 		1); // pin task to core 1 
 	ESP_LOGI(MAIN_TAG, "Device API task created: %d", taskResult);
+	*/
 
 	esp32Manager_CreateTasks();
 	//midi_Init();
@@ -94,8 +99,12 @@ void setup()
 
 void loop()
 {
-	midi_ReadAll();
-	buttons_Process();	
+	//midi_ReadAll();
+	buttons_Process();
+	if(Serial.available())
+	{
+		deviceApi_Handler(deviceApiBuffer, 0);
+	}
 }
 
 void defaultGlobalSettingsAssignment()
@@ -124,22 +133,22 @@ void defaultGlobalSettingsAssignment()
 	// Thru handle assignments
 	globalSettings.usbdThruHandles[MidiUSBD] = 1;
 	globalSettings.usbdThruHandles[MidiBLE] = 1;
-	globalSettings.usbdThruHandles[MidiWiFiRTP] = 1;
+	//globalSettings.usbdThruHandles[MidiWiFiRTP] = 1;
 	globalSettings.usbdThruHandles[MidiSerial1] = 1;
 
 	globalSettings.bleThruHandles[MidiUSBD] = 1;
 	globalSettings.bleThruHandles[MidiBLE] = 1;
-	globalSettings.bleThruHandles[MidiWiFiRTP] = 1;
+	//globalSettings.bleThruHandles[MidiWiFiRTP] = 1;
 	globalSettings.bleThruHandles[MidiSerial1] = 1;
 
-	globalSettings.wifiThruHandles[MidiUSBD] = 1;
-	globalSettings.wifiThruHandles[MidiBLE] = 1;
-	globalSettings.wifiThruHandles[MidiWiFiRTP] = 1;
-	globalSettings.wifiThruHandles[MidiSerial1] = 1;
+	//globalSettings.wifiThruHandles[MidiUSBD] = 1;
+	//globalSettings.wifiThruHandles[MidiBLE] = 1;
+	//globalSettings.wifiThruHandles[MidiWiFiRTP] = 1;
+	//globalSettings.wifiThruHandles[MidiSerial1] = 1;
 
 	globalSettings.midi1ThruHandles[MidiUSBD] = 1;
 	globalSettings.midi1ThruHandles[MidiBLE] = 1;
-	globalSettings.midi1ThruHandles[MidiWiFiRTP] = 1;
+	//globalSettings.midi1ThruHandles[MidiWiFiRTP] = 1;
 	globalSettings.midi1ThruHandles[MidiSerial1] = 1;
 	
 	// Default MIDI mapping
@@ -155,14 +164,14 @@ void defaultGlobalSettingsAssignment()
 	for(uint8_t i=0; i<NUM_SWITCH_MESSAGES; i++)
 	{
 		// A 0 status byte indicates an 'unset' message and the end of available messages
-		globalSettings.switchPressMessages[0][i].statusByte = 0;
-		globalSettings.switchPressMessages[1][i].statusByte = 0;
-		globalSettings.switchHoldMessages[0][i].statusByte = 0;
-		globalSettings.switchHoldMessages[1][i].statusByte = 0;
+		globalSettings.switchPressMessages[0][i].status = 0;
+		globalSettings.switchPressMessages[1][i].status = 0;
+		globalSettings.switchHoldMessages[0][i].status = 0;
+		globalSettings.switchHoldMessages[1][i].status = 0;
 	}
 	for(uint8_t i=0; i<NUM_CUSTOM_MESSAGES; i++)
 	{
-		globalSettings.customMessages[i].statusByte = 0;
+		globalSettings.customMessages[i].status = 0;
 	}
 }
 
@@ -184,18 +193,18 @@ void defaultPresetsAssignment()
 		for(uint8_t j=0; j<NUM_SWITCH_MESSAGES; j++)
 		{
 			// A 0 status byte indicates an 'unset' message and the end of available messages
-			presets[i].switchPressMessages[0][j].statusByte = 0;
-			presets[i].switchPressMessages[1][j].statusByte = 0;
-			presets[i].switchHoldMessages[0][j].statusByte = 0;
-			presets[i].switchHoldMessages[1][j].statusByte = 0;
+			presets[i].numSwitchPressMessages[0] = 0;
+			presets[i].numSwitchPressMessages[1] = 0;
+			presets[i].numSwitchHoldMessages[0] = 0;
+			presets[i].numSwitchHoldMessages[1] = 0;
 		}
 		for(uint8_t j=0; j<NUM_PRESET_MESSAGES; j++)
 		{
-			presets[i].presetMessages[j].statusByte = 0;
+			presets[i].numPresetMessages = 0;
 		}
 		for(uint8_t j=0; j<NUM_CUSTOM_MESSAGES; j++)
 		{
-			presets[i].customMessages[j].statusByte = 0;
+			presets[i].numCustomMessages = 0;
 		}
 	}
 }
@@ -205,7 +214,7 @@ void assignMidiCallbacks()
 	// Assign thru handling pointers
 	usbdMidiThruHandlesPtr = globalSettings.usbdThruHandles;
 	bleMidiThruHandlesPtr = globalSettings.bleThruHandles;
-	wifiMidiThruHandlesPtr = globalSettings.wifiThruHandles;
+	//wifiMidiThruHandlesPtr = globalSettings.wifiThruHandles;
 	serial1MidiThruHandlesPtr = globalSettings.midi1ThruHandles;
 
 	midi_AssignControlChangeCallback(controlChangeHandler);
@@ -257,29 +266,37 @@ void sendMidiMessage(MidiMessage message)
 	uint8_t sendWifi = (message.midiInterface >> 2) & 0x01;
 	uint8_t sendSerial1 = (message.midiInterface >> 3) & 0x01;
 	// Channel messages
-	if((message.statusByte & 0xF0) <= midi::PitchBend)
+	if((message.status & 0xF0) <= midi::PitchBend)
 	{
-		uint8_t type = message.statusByte & 0xF0;
-		uint8_t channel = message.statusByte & 0x0F;
+		uint8_t type = message.status & 0xF0;
+		uint8_t channel = message.status & 0x0F;
 		if(sendUsbd)
-			midi_SendMessage(MidiUSBD, (midi::MidiType)type, channel, message.data1Byte, message.data2Byte);
+			midi_SendMessage(MidiUSBD, (midi::MidiType)type, channel, message.data1, message.data2);
 		if(sendBle)
-			midi_SendMessage(MidiBLE, (midi::MidiType)type, channel, message.data1Byte, message.data2Byte);
+			midi_SendMessage(MidiBLE, (midi::MidiType)type, channel, message.data1, message.data2);
+
+#ifdef USE_WIFI_RTP_MIDI			
 		if(sendWifi)
-			midi_SendMessage(MidiWiFiRTP, (midi::MidiType)type, channel, message.data1Byte, message.data2Byte);
+			midi_SendMessage(MidiWiFiRTP, (midi::MidiType)type, channel, message.data1, message.data2);
+#endif
+
 		if(sendSerial1)
-			midi_SendMessage(MidiSerial1, (midi::MidiType)type, channel, message.data1Byte, message.data2Byte);
+			midi_SendMessage(MidiSerial1, (midi::MidiType)type, channel, message.data1, message.data2);
 	}
 	else
 	{
 		if(sendUsbd)
-			midi_SendMessage(MidiUSBD, (midi::MidiType)message.statusByte, 0, message.data1Byte, message.data2Byte);
+			midi_SendMessage(MidiUSBD, (midi::MidiType)message.status, 0, message.data1, message.data2);
 		if(sendBle)
-			midi_SendMessage(MidiBLE, (midi::MidiType)message.statusByte, 0, message.data1Byte, message.data2Byte);
-		if(sendWifi)
-			midi_SendMessage(MidiWiFiRTP, (midi::MidiType)message.statusByte, 0, message.data1Byte, message.data2Byte);
+			midi_SendMessage(MidiBLE, (midi::MidiType)message.status, 0, message.data1, message.data2);
+
+#ifdef USE_WIFI_RTP_MIDI		
+			if(sendWifi)
+			midi_SendMessage(MidiWiFiRTP, (midi::MidiType)message.status, 0, message.data1, message.data2);
+#endif
+
 		if(sendSerial1)
-			midi_SendMessage(MidiSerial1, (midi::MidiType)message.statusByte, 0, message.data1Byte, message.data2Byte);
+			midi_SendMessage(MidiSerial1, (midi::MidiType)message.status, 0, message.data1, message.data2);
 	}
 }
 
@@ -362,8 +379,11 @@ void factoryReset()
 void deviceApiTask(void* parameter)
 {
 	ESP_LOGI(MAIN_TAG, "Device API task started");
+	UBaseType_t uxHighWaterMark;
 	while(1)
-	{		
+	{
+		//uxHighWaterMark = uxTaskGetStackHighWaterMark( NULL );	
+		//ESP_LOGD("Device API", "MIDI Process Task High Water Mark: %d", uxHighWaterMark);
 		if(Serial.available())
 		{
 			deviceApi_Handler(deviceApiBuffer, 0);

@@ -11,13 +11,17 @@
 #define BLE_MIDI_DEVICE_NAME 	"Scribble-BLE"
 #define RTP_SESSION_NAME		"Scribble-RTP"
 
-#define NUM_MIDI_INTERFACES			4	// USBD, BLE, WiFi, Serial1
+#define NUM_MIDI_INTERFACES			3	// USBD, BLE, Serial1
 #define MIDI_INDICATOR_ON_TIME		80 // Time in milliseconds for MIDI indicator to stay on
 
 #define MIDI_CLOCK_PRESET		0
 #define MIDI_CLOCK_EXTERNAL	1
 #define MIDI_CLOCK_GLOBAL		2
 #define MIDI_CLOCK_OFF			3
+
+#define MIDI_CLOCK_DISPLAY_BPM			0
+#define MIDI_CLOCK_DISPLAY_MS				1
+#define MIDI_CLOCK_DISPLAY_INDICATOR	2
 
 #define UI_MODE_LIGHT		0
 #define UI_MODE_DARK			1
@@ -42,7 +46,7 @@ typedef enum
 	SwitchPressPresetDown,
 	SwitchHoldPresetUp,
 	SwitchHoldPresetDown,
-	SwitchCustom
+	SwitchMidiOnly
 } SwitchMode;
 
 typedef struct
@@ -51,9 +55,9 @@ typedef struct
 	// Bit maskng is used to preserve memory and allow multiple interfaces
 	// Bit 0 = USBD, Bit 1 = BLE, Bit 2 = WiFi, Bit 3 = Serial1
 	uint8_t midiInterface;		
-	uint8_t statusByte;
-	uint8_t data1Byte;
-	uint8_t data2Byte;
+	uint8_t status;
+	uint8_t data1;
+	uint8_t data2;
 } MidiMessage;
 
 typedef struct
@@ -82,13 +86,16 @@ typedef struct
 	// MIDI thru handles
 	uint8_t usbdThruHandles[NUM_MIDI_INTERFACES];
 	uint8_t bleThruHandles[NUM_MIDI_INTERFACES];
-	uint8_t wifiThruHandles[NUM_MIDI_INTERFACES];
+	//uint8_t wifiThruHandles[NUM_MIDI_INTERFACES];
 	uint8_t midi1ThruHandles[NUM_MIDI_INTERFACES];
 
 	uint8_t midiClockOutHandles[NUM_MIDI_INTERFACES];
+	uint8_t numSwitchPressMessages[2];
 	MidiMessage switchPressMessages[2][NUM_SWITCH_MESSAGES];
+	uint8_t numSwitchHoldMessages[2];
 	MidiMessage switchHoldMessages[2][NUM_SWITCH_MESSAGES];
-	MidiMessage customMessages[NUM_CUSTOM_MESSAGES];
+	uint8_t numCustomMessages;
+	MidiMessage customMessages[NUM_CUSTOM_MESSAGES];			// Triggered by external CC
 	uint8_t presetUpCC;
 	uint8_t presetDownCC;
 	uint8_t goToPresetCC;
@@ -97,6 +104,8 @@ typedef struct
 
 	// ESP32 manager
 	Esp32ManagerConfig esp32ManagerConfig;
+	char wifiSsid[32];
+	char wifiPassword[64];
 } GlobalSettings;
 
 typedef struct
@@ -109,11 +118,14 @@ typedef struct
 	uint8_t textColourOverrideFlag;	// 0 = use main colour, 1 = use preset colour override
 	uint16_t textColourOverride;		// Main text colour override (16-bit RGB565)
 	float bpm;
+	uint8_t numSwitchPressMessages[2];
 	MidiMessage switchPressMessages[2][NUM_SWITCH_MESSAGES];
+	uint8_t numSwitchHoldMessages[2];
 	MidiMessage switchHoldMessages[2][NUM_SWITCH_MESSAGES];
+	uint8_t numPresetMessages;
 	MidiMessage presetMessages[NUM_PRESET_MESSAGES];
-	MidiMessage customMessages[NUM_CUSTOM_MESSAGES];
-
+	uint8_t numCustomMessages;
+	MidiMessage customMessages[NUM_CUSTOM_MESSAGES];	// Triggered by external CC
 } Preset;
 
 extern int8_t bleRssi;
