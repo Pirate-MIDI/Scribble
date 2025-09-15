@@ -18,6 +18,7 @@ const char *midiInterfaceStrings[NUM_MIDI_INTERFACES] = {	USB_USB_STRING,
 																				USB_MIDI1_STRING};
 
 void packMessageStack(const JsonArray& jsonArray, MidiMessage* messages, uint16_t numMessages);
+void parseMessageStack(const JsonArray& jsonArray, MidiMessage* messages, uint16_t numMessages);
 
 // Transmit functions
 void sendCheckResponse(uint8_t transport)
@@ -31,7 +32,7 @@ void sendCheckResponse(uint8_t transport)
 	doc["hardwareVersion"] = HW_VERSION;
 	doc["uId"] = ((ESP.getEfuseMac() << 40) >> 40);
 	doc["deviceName"] = "Scribble";
-	doc["profileId"] = 0;
+	doc["profileId"] = globalSettings.profileId;
 
 
 	if(transport == USB_CDC_TRANSPORT)
@@ -152,6 +153,12 @@ void sendGlobalSettings(uint8_t transport)
 	packMessageStack(	doc["customMessages"]["messages"].to<JsonArray>(),
 										globalSettings.customMessages, globalSettings.numCustomMessages);
 
+	doc["presetUpCC"] = globalSettings.presetUpCC;
+	doc["presetDownCC"] = globalSettings.presetDownCC;
+	doc["goToPresetCC"] = globalSettings.goToPresetCC;
+	doc["globalCustomMessagesCC"] = globalSettings.globalCustomMessagesCC;
+	doc["presetCustomMessagesCC"] = globalSettings.presetCustomMessagesCC;
+
 	// Wireless config
 	if(globalSettings.esp32ManagerConfig.wirelessType == Esp32BLE)
 		doc["wirelessType"] = "ble";
@@ -197,8 +204,8 @@ void sendGlobalSettings(uint8_t transport)
 void sendBankSettings(int bankNum, uint8_t transport)
 {
 	JsonDocument doc;
-	doc["id"] = presets[bankNum].id;
-	doc["name"] = presets[bankNum].name;
+	doc["bankId"] = presets[bankNum].id;
+	doc["bankName"] = presets[bankNum].name;
 	doc["secondaryText"] = presets[bankNum].secondaryText;
 
 	doc["colourOverride"] = (bool)presets[bankNum].colourOverrideFlag;
@@ -339,7 +346,48 @@ void parseGlobalSettings(char* appData, uint8_t transport)
 	globalSettings.midi1ThruHandles[MidiSerial1] = (uint8_t)doc[USB_MIDI1_THRU_HANDLES_STRING][USB_MIDI1_STRING];
 
 
+	// Clock output handles
+	globalSettings.midiClockOutHandles[MidiUSBD] = (uint8_t)doc[USB_MIDI_CLOCK_OUT_HANDLES_STRING][USB_USBD_STRING];
+	globalSettings.midiClockOutHandles[MidiBLE] = (uint8_t)doc[USB_MIDI_CLOCK_OUT_HANDLES_STRING][USB_BLE_STRING];
+	//globalSettings.midiClockOutHandles[MidiWiFiRTP] = (uint8_t)doc[USB_MIDI_CLOCK_OUT_HANDLES_STRING][USB_WIFI_STRING];
+	globalSettings.midiClockOutHandles[MidiSerial1] = (uint8_t)doc[USB_MIDI_CLOCK_OUT_HANDLES_STRING][USB_MIDI1_STRING];
 	
+
+	// Switch messages
+	for(uint8_t i=0; i<2; i++)
+	{
+		if(strcmp(doc["switches"][i]["mode"], "pressPresetUp") == 0)
+			globalSettings.switchMode[i] = SwitchPressPresetUp;
+		else if(strcmp(doc["switches"][i]["mode"], "pressPresetDown") == 0)
+			globalSettings.switchMode[i] = SwitchPressPresetDown;
+		else if(strcmp(doc["switches"][i]["mode"], "holdPresetUp") == 0)
+			globalSettings.switchMode[i] = SwitchHoldPresetUp;
+		else if(strcmp(doc["switches"][i]["mode"], "holdPresetDown") == 0)
+			globalSettings.switchMode[i] = SwitchHoldPresetDown;
+		else
+			globalSettings.switchMode[i] = SwitchMidiOnly;
+
+		// Press messages
+		globalSettings.numSwitchPressMessages[i] = doc["switches"][i]["pressMessages"]["numMessages"];
+		parseMessageStack(doc["switches"][i]["pressMessages"]["messages"],
+									globalSettings.switchPressMessages[i], globalSettings.numSwitchPressMessages[i]);
+		// Hold messages
+		globalSettings.numSwitchHoldMessages[i] = doc["switches"][i]["holdMessages"]["numMessages"];
+		parseMessageStack(doc["switches"][i]["holdMessages"]["messages"],
+									globalSettings.switchHoldMessages[i], globalSettings.numSwitchHoldMessages[i]);
+	}
+
+	// Custom messages
+	globalSettings.numCustomMessages = doc["customMessages"]["numMessages"];
+	parseMessageStack(doc["customMessages"]["messages"],
+								globalSettings.customMessages, globalSettings.numCustomMessages);
+
+	// CC assignments
+	globalSettings.presetUpCC = doc["presetUpCC"];
+	globalSettings.presetDownCC = doc["presetDownCC"];
+	globalSettings.goToPresetCC = doc["goToPresetCC"];
+	globalSettings.globalCustomMessagesCC = doc["globalCustomMessagesCC"];
+	globalSettings.presetCustomMessagesCC = doc["presetCustomMessagesCC"];
 
 	// ESP32 Manager config
 	if(strcmp(doc["wirelessType"], "ble") == 0)
@@ -371,14 +419,40 @@ void parseBankSettings(char* appData, uint16_t bankNum, uint8_t transport)
 		Serial.printf("deserializeJson() failed: %s\n", error.c_str());
 		return;
 	}
-
-	const char* newPresetName = doc["name"];
+	
+	presets[bankNum].id = doc["bankId"];
+	const char* newPresetName = doc["bankName"];
 	strcpy(presets[bankNum].name, newPresetName);
 	const char* newSecondaryText = doc["secondaryText"];
 	strcpy(presets[bankNum].secondaryText, newSecondaryText);
 	presets[bankNum].colourOverrideFlag = (bool)doc["colourOverride"];
 	presets[bankNum].colourOverride = doc["colour"];
+	presets[bankNum].textColourOverrideFlag = (bool)doc["textColourOverride"];
+	presets[bankNum].textColourOverride = doc["textColour"];
 	presets[bankNum].bpm = doc["bpm"];
+
+	// Switch messages
+	for(uint8_t i=0; i<2; i++)
+	{
+		// Press messages
+		presets[bankNum].numSwitchPressMessages[i] = doc["switches"][i]["pressMessages"]["numMessages"];
+		parseMessageStack(doc["switches"][i]["pressMessages"]["messages"],
+									presets[bankNum].switchPressMessages[i], presets[bankNum].numSwitchPressMessages[i]);
+		// Hold messages
+		presets[bankNum].numSwitchHoldMessages[i] = doc["switches"][i]["holdMessages"]["numMessages"];
+		parseMessageStack(doc["switches"][i]["holdMessages"]["messages"],
+									presets[bankNum].switchHoldMessages[i], presets[bankNum].numSwitchHoldMessages[i]);
+	}
+
+	// Preset messages
+	presets[bankNum].numPresetMessages = doc["presetMessages"]["numMessages"];
+	parseMessageStack(doc["presetMessages"]["messages"],
+								presets[bankNum].presetMessages, presets[bankNum].numPresetMessages);
+
+	// Custom messages
+	presets[bankNum].numCustomMessages = doc["customMessages"]["numMessages"];
+	parseMessageStack(doc["customMessages"]["messages"],
+								presets[bankNum].customMessages, presets[bankNum].numCustomMessages);
 }
 
 void ctrlCommandHandler(char* appData, uint8_t transport)
@@ -530,6 +604,29 @@ void packMessageStack(const JsonArray& jsonArray, MidiMessage* messages, uint16_
 			if((messages[i].midiInterface>>j) & 1)
 			{
 				jsonArray[i][USB_MIDI_OUTPUTS_STRING][midiInterfaceStrings[j]] = true;
+			}
+		}
+	}
+}
+
+void parseMessageStack(const JsonArray& jsonArray, MidiMessage* messages, uint16_t numMessages)
+{
+	MidiMessage* message;
+	
+	for(uint16_t i=0; i<numMessages; i++)
+	{
+		message = &messages[i];
+		message->status = jsonArray[i][USB_STATUS_BYTE_STRING];
+		
+		// MIDI outputs
+		message->data1 = jsonArray[i][USB_DATA_BYTE1_STRING];
+		message->data2 = jsonArray[i][USB_DATA_BYTE2_STRING];
+		message->midiInterface = 0;
+		for(uint8_t j=0; j<NUM_MIDI_INTERFACES; j++)
+		{
+			if(jsonArray[i][USB_MIDI_OUTPUTS_STRING][midiInterfaceStrings[j]] == true)
+			{
+				message->midiInterface |= (1<<j);
 			}
 		}
 	}

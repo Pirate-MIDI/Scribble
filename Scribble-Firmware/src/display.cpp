@@ -162,8 +162,25 @@ void display_DrawMainText(const char* text, const char* secondaryText)
 	int16_t  x1, y1;
 	uint16_t w, h;
 	int16_t yOffset;
-	lcd.fillRect(0, LCD_HEIGHT-MAIN_FILL_HEIGHT, 320, MAIN_FILL_HEIGHT, GEN_LOSS_BLUE);
-	lcd.setTextColor(ST77XX_WHITE);
+	// Check to use the global colour or the preset override colour
+	if(presets[globalSettings.currentPreset].colourOverrideFlag)
+	{
+		lcd.fillRect(0, LCD_HEIGHT-MAIN_FILL_HEIGHT, 320, MAIN_FILL_HEIGHT, presets[globalSettings.currentPreset].colourOverride);
+	}
+	else
+	{
+		lcd.fillRect(0, LCD_HEIGHT-MAIN_FILL_HEIGHT, 320, MAIN_FILL_HEIGHT, globalSettings.mainColour);
+	}
+	// Check for the preset text override colour
+	if(presets[globalSettings.currentPreset].textColourOverrideFlag)
+	{
+		lcd.setTextColor(presets[globalSettings.currentPreset].textColourOverride);
+	}
+	else
+	{
+		lcd.setTextColor(globalSettings.textColour);
+	}
+	
 	// Draw main text
 	if(text != NULL)
 	{

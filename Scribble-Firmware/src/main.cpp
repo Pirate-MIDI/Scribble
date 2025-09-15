@@ -116,6 +116,8 @@ void defaultGlobalSettingsAssignment()
 	// System settings
 	globalSettings.bootState = 0; 						// Initial boot state
 	globalSettings.currentPreset = 0; 					// Start with the first preset
+	globalSettings.profileId = 0;						// Default profile ID
+	strcpy(globalSettings.deviceName, "Scribble");	// Default device name
 
 	// UI settings
 	globalSettings.uiLightMode = UI_MODE_DARK;
@@ -161,18 +163,18 @@ void defaultGlobalSettingsAssignment()
 	globalSettings.esp32ManagerConfig.wirelessType = Esp32WiFi;
 
 	// Set all message stacks to empty
-	for(uint8_t i=0; i<NUM_SWITCH_MESSAGES; i++)
-	{
-		// A 0 status byte indicates an 'unset' message and the end of available messages
-		globalSettings.switchPressMessages[0][i].status = 0;
-		globalSettings.switchPressMessages[1][i].status = 0;
-		globalSettings.switchHoldMessages[0][i].status = 0;
-		globalSettings.switchHoldMessages[1][i].status = 0;
-	}
-	for(uint8_t i=0; i<NUM_CUSTOM_MESSAGES; i++)
-	{
-		globalSettings.customMessages[i].status = 0;
-	}
+	for(uint8_t j=0; j<NUM_SWITCH_MESSAGES; j++)
+		{
+			// A 0 status byte indicates an 'unset' message and the end of available messages
+			globalSettings.numSwitchPressMessages[0] = 0;
+			globalSettings.numSwitchPressMessages[1] = 0;
+			globalSettings.numSwitchHoldMessages[0] = 0;
+			globalSettings.numSwitchHoldMessages[1] = 0;
+		}
+		for(uint8_t j=0; j<NUM_CUSTOM_MESSAGES; j++)
+		{
+			globalSettings.numCustomMessages = 0;
+		}
 }
 
 void defaultPresetsAssignment()

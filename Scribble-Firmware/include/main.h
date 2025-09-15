@@ -69,7 +69,6 @@ typedef struct
 	uint16_t currentPreset;			// Current preset index (0-127)
 	
 	// UI settings
-	uint32_t pedalModel;				// Pedal model ID
 	uint8_t uiLightMode;				// 0 = dark, 1 = light, 2 = auto (follow pedal model)
 	uint16_t mainColour;				// Main UI colour (16-bit RGB565)
 	uint16_t textColour;				// Colour for main and secondary text (16-bit RGB565)
