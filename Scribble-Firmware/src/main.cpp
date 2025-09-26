@@ -160,7 +160,7 @@ void defaultGlobalSettingsAssignment()
 	globalSettings.globalCustomMessagesCC = CUSTOM_GLOBAL_STACK_CC;
 	globalSettings.presetCustomMessagesCC = CUSTOM_PRESET_STACK_CC;
 
-	globalSettings.esp32ManagerConfig.wirelessType = Esp32WiFi;
+	globalSettings.esp32ManagerConfig.wirelessType = Esp32BLE;
 
 	// Set all message stacks to empty
 	for(uint8_t j=0; j<NUM_SWITCH_MESSAGES; j++)

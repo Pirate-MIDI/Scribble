@@ -19,6 +19,7 @@ const char *midiInterfaceStrings[NUM_MIDI_INTERFACES] = {	USB_USB_STRING,
 
 void packMessageStack(const JsonArray& jsonArray, MidiMessage* messages, uint16_t numMessages);
 void parseMessageStack(const JsonArray& jsonArray, MidiMessage* messages, uint16_t numMessages);
+uint16_t rgb888_to_rgb565(uint32_t rgb888);
 
 // Transmit functions
 void sendCheckResponse(uint8_t transport)
@@ -64,7 +65,8 @@ void sendGlobalSettings(uint8_t transport)
 
 	doc["mainColour"] = globalSettings.mainColour;
 	doc["textColour"] = globalSettings.textColour;
-	doc["displayBrightness"] = globalSettings.displayBrightness;
+	//doc["displayBrightness"] = globalSettings.displayBrightness/2;
+	doc["displayBrightness"] = devApi_roundMap(globalSettings.displayBrightness, 1, 255, 1, 100);
 
 	// MIDI channels
 	doc[USB_MIDI_CHANNEL_STRING] = globalSettings.midiChannel;
@@ -303,9 +305,11 @@ void parseGlobalSettings(char* appData, uint8_t transport)
 	else if(strcmp(doc["lightMode"], "dark") == 0)
 		globalSettings.uiLightMode = UI_MODE_DARK;
 
-	globalSettings.mainColour = doc["mainColour"];
-	globalSettings.textColour = doc["textColour"];
+	globalSettings.mainColour = rgb888_to_rgb565(doc["mainColour"]);
+	globalSettings.textColour = rgb888_to_rgb565(doc["textColour"]);
 	// todo brightness
+	uint8_t tempBrightness = doc["displayBrightness"];
+	globalSettings.displayBrightness = devApi_roundMap(doc["displayBrightness"], 0, 100, 0, 255);
 
 
 	// MIDI channels
@@ -389,18 +393,54 @@ void parseGlobalSettings(char* appData, uint8_t transport)
 	globalSettings.globalCustomMessagesCC = doc["globalCustomMessagesCC"];
 	globalSettings.presetCustomMessagesCC = doc["presetCustomMessagesCC"];
 
+	// Block wireless MIDI events until the device reboots
+	blockWirelessMidi = 1;
 	// ESP32 Manager config
-	if(strcmp(doc["wirelessType"], "ble") == 0)
+	if(strcmp(doc["wirelessType"], "wifi") == 0)
+		globalSettings.esp32ManagerConfig.wirelessType = Esp32WiFi;
+	else if(strcmp(doc["wirelessType"], "ble") == 0)
 	{
+		// If the device is switching from a WiFi configuration, disable the WiFi and reset the settings
+		if(globalSettings.esp32ManagerConfig.wirelessType == Esp32WiFi)
+		{
+			wifi_Disconnect();
+			//wifi_ResetSettings();
+		}
 		globalSettings.esp32ManagerConfig.wirelessType = Esp32BLE;
 	}
-	else if(strcmp(doc["wirelessType"], "wifi") == 0)
-	{
-		globalSettings.esp32ManagerConfig.wirelessType = Esp32WiFi;
-	}
 	else
-	{
 		globalSettings.esp32ManagerConfig.wirelessType = Esp32None;
+
+	if(strcmp(doc["bleMode"], "server") == 0)
+		globalSettings.esp32ManagerConfig.bleMode = Esp32BLEServer;
+	else if(strcmp(doc["bleMode"], "client") == 0)
+		globalSettings.esp32ManagerConfig.bleMode = Esp32BLEClient;
+
+	// Static IP
+	globalSettings.esp32ManagerConfig.useStaticIp = (uint8_t)doc["useStaticIp"];
+
+	String staticIpString = doc["staticIp"];
+	int ipParts[4] = {0, 0, 0, 0};
+	sscanf(staticIpString.c_str(), "%d.%d.%d.%d", &ipParts[0], &ipParts[1], &ipParts[2], &ipParts[3]);
+	for(int i=0; i<4; i++)
+	{
+		if(ipParts[i] < 0)
+			ipParts[i] = 0;
+		else if(ipParts[i] > 255)
+			ipParts[i] = 255;
+		globalSettings.esp32ManagerConfig.staticIp[i] = (uint8_t)ipParts[i];
+	}
+
+	String gatewayIpString = doc["gatewayIp"];
+	int gatewayParts[4] = {0, 0, 0, 0};
+	sscanf(gatewayIpString.c_str(), "%d.%d.%d.%d", &gatewayParts[0], &gatewayParts[1], &gatewayParts[2], &gatewayParts[3]);
+	for(int i=0; i<4; i++)
+	{
+		if(gatewayParts[i] < 0)
+			gatewayParts[i] = 0;
+		else if(gatewayParts[i] > 255)
+			gatewayParts[i] = 255;
+		globalSettings.esp32ManagerConfig.staticGatewayIp[i] = (uint8_t)gatewayParts[i];
 	}
 
 	esp32Settings_SaveGlobalSettings();
@@ -426,9 +466,9 @@ void parseBankSettings(char* appData, uint16_t bankNum, uint8_t transport)
 	const char* newSecondaryText = doc["secondaryText"];
 	strcpy(presets[bankNum].secondaryText, newSecondaryText);
 	presets[bankNum].colourOverrideFlag = (bool)doc["colourOverride"];
-	presets[bankNum].colourOverride = doc["colour"];
+	presets[bankNum].colourOverride = rgb888_to_rgb565(doc["colour"]);
 	presets[bankNum].textColourOverrideFlag = (bool)doc["textColourOverride"];
-	presets[bankNum].textColourOverride = doc["textColour"];
+	presets[bankNum].textColourOverride = rgb888_to_rgb565(doc["textColour"]);
 	presets[bankNum].bpm = doc["bpm"];
 
 	// Switch messages
@@ -453,6 +493,8 @@ void parseBankSettings(char* appData, uint16_t bankNum, uint8_t transport)
 	presets[bankNum].numCustomMessages = doc["customMessages"]["numMessages"];
 	parseMessageStack(doc["customMessages"]["messages"],
 								presets[bankNum].customMessages, presets[bankNum].numCustomMessages);
+
+	esp32Settings_SavePresets();
 }
 
 void ctrlCommandHandler(char* appData, uint8_t transport)
@@ -630,4 +672,20 @@ void parseMessageStack(const JsonArray& jsonArray, MidiMessage* messages, uint16
 			}
 		}
 	}
+}
+
+uint16_t rgb888_to_rgb565(uint32_t rgb888)
+{
+    // Extract 8-bit components from 24-bit color
+    uint8_t r = (rgb888 >> 16) & 0xFF;  // Red component
+    uint8_t g = (rgb888 >> 8) & 0xFF;   // Green component
+    uint8_t b = rgb888 & 0xFF;          // Blue component
+    
+    // Convert to 5-6-5 format by scaling and bit shifting
+    uint16_t r5 = (r >> 3) & 0x1F;      // 5 bits for red
+    uint16_t g6 = (g >> 2) & 0x3F;      // 6 bits for green
+    uint16_t b5 = (b >> 3) & 0x1F;      // 5 bits for blue
+    
+    // Combine into 16-bit value: RRRRR GGGGGG BBBBB
+    return (r5 << 11) | (g6 << 5) | b5;
 }
