@@ -20,6 +20,7 @@ const char *midiInterfaceStrings[NUM_MIDI_INTERFACES] = {	USB_USB_STRING,
 void packMessageStack(const JsonArray& jsonArray, MidiMessage* messages, uint16_t numMessages);
 void parseMessageStack(const JsonArray& jsonArray, MidiMessage* messages, uint16_t numMessages);
 uint16_t rgb888_to_rgb565(uint32_t rgb888);
+uint32_t rgb565_to_rgb888(uint16_t rgb565);
 
 // Transmit functions
 void sendCheckResponse(uint8_t transport)
@@ -63,9 +64,8 @@ void sendGlobalSettings(uint8_t transport)
 	else if(globalSettings.uiLightMode == UI_MODE_LIGHT)
 		doc["lightMode"] = "light";
 
-	doc["mainColour"] = globalSettings.mainColour;
-	doc["textColour"] = globalSettings.textColour;
-	//doc["displayBrightness"] = globalSettings.displayBrightness/2;
+	doc["mainColour"] = rgb565_to_rgb888(globalSettings.mainColour);
+	doc["textColour"] = rgb565_to_rgb888(globalSettings.textColour);
 	doc["displayBrightness"] = devApi_roundMap(globalSettings.displayBrightness, 1, 255, 1, 100);
 
 	// MIDI channels
@@ -211,9 +211,9 @@ void sendBankSettings(int bankNum, uint8_t transport)
 	doc["secondaryText"] = presets[bankNum].secondaryText;
 
 	doc["colourOverride"] = (bool)presets[bankNum].colourOverrideFlag;
-	doc["colour"] = presets[bankNum].colourOverride;
+	doc["colour"] = rgb565_to_rgb888(presets[bankNum].colourOverride);
 	doc["textColourOverride"] = (bool)presets[bankNum].textColourOverrideFlag;
-	doc["textColour"] = presets[bankNum].textColourOverride;
+	doc["textColour"] = rgb565_to_rgb888(presets[bankNum].textColourOverride);
 	
 	doc["bpm"] = presets[bankNum].bpm;
 
@@ -674,6 +674,8 @@ void parseMessageStack(const JsonArray& jsonArray, MidiMessage* messages, uint16
 	}
 }
 
+
+// Colour conversion functions
 uint16_t rgb888_to_rgb565(uint32_t rgb888)
 {
     // Extract 8-bit components from 24-bit color
@@ -688,4 +690,21 @@ uint16_t rgb888_to_rgb565(uint32_t rgb888)
     
     // Combine into 16-bit value: RRRRR GGGGGG BBBBB
     return (r5 << 11) | (g6 << 5) | b5;
+}
+
+uint32_t rgb565_to_rgb888(uint16_t rgb565)
+{
+    // Extract 5-6-5 components from 16-bit color
+    uint8_t r5 = (rgb565 >> 11) & 0x1F;  // 5 bits for red
+    uint8_t g6 = (rgb565 >> 5) & 0x3F;   // 6 bits for green
+    uint8_t b5 = rgb565 & 0x1F;          // 5 bits for blue
+    
+    // Scale up to 8-bit by bit replication and scaling
+    // For 5-bit to 8-bit: multiply by 255/31 ≈ 8.23, so (x << 3) | (x >> 2)
+    uint8_t r8 = (r5 << 3) | (r5 >> 2);
+    uint8_t g8 = (g6 << 2) | (g6 >> 4);  // For 6-bit to 8-bit: multiply by 255/63 ≈ 4.05
+    uint8_t b8 = (b5 << 3) | (b5 >> 2);
+    
+    // Combine into 24-bit value: 0xRRGGBB
+    return (r8 << 16) | (g8 << 8) | b8;
 }

@@ -1,0 +1,26 @@
+{
+  "bootloader": [
+    {
+      "address": "0x0000",
+      "fileName": "bootloader_scribble_v0.1.2.0.bin"
+    }
+  ],
+  "partitions": [
+    {
+      "address": "0x8000",
+      "fileName": "partitions_scribble_v0.1.2.0.bin"
+    }
+  ],
+  "ota": [
+    {
+      "address": "0xe000",
+      "fileName": "ota_scribble_v0.1.2.0.bin"
+    }
+  ],
+  "application": [
+    {
+      "address": "0x10000",
+      "fileName": "scribble_v0.1.2.0"
+    }
+  ]
+}

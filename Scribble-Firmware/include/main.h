@@ -101,6 +101,8 @@ typedef struct
 	uint8_t globalCustomMessagesCC;
 	uint8_t presetCustomMessagesCC;
 
+	uint8_t pcBankOutputs[NUM_MIDI_INTERFACES];
+
 	// ESP32 manager
 	Esp32ManagerConfig esp32ManagerConfig;
 	char wifiSsid[32];

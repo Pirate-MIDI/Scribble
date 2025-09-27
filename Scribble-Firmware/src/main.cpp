@@ -12,6 +12,7 @@
 #include "buttons.h"
 #include "midi_clock.h"
 #include "wifi_management.h"
+#include "esp32-hal-tinyusb.h"
 
 static const char* MAIN_TAG = "MAIN";
 
@@ -32,6 +33,7 @@ void deviceApiTask(void* parameter);
 
 void setOutTypeA();
 void setOutTypeB();
+void debugMIDIPins();
 void assignMidiCallbacks();
 
 void setup()
@@ -46,14 +48,6 @@ void setup()
 	esp32Settings_AssignDefaultPresetSettings(defaultPresetsAssignment);
 	esp32Settings_BootCheck(&globalSettings, sizeof(GlobalSettings), presets, sizeof(Preset), NUM_PRESETS, &globalSettings.bootState);
 
-	assignMidiCallbacks();
-	// Check for stored WiFi credentials and attempt to connect
-	//WiFi.persistent(true);
-	//WiFi.begin(globalSettings.wifiSsid, globalSettings.wifiPassword);
-	esp32Manager_Init();
-
-	display_Init();
-
 	// Configure pins
 	if(globalSettings.midiOutMode == MIDI_OUT_TYPE_A)
 	{
@@ -63,6 +57,20 @@ void setup()
 	{
 		setOutTypeB();
 	}
+
+	assignMidiCallbacks();
+	// Check for stored WiFi credentials and attempt to connect
+	//WiFi.persistent(true);
+	//WiFi.begin(globalSettings.wifiSsid, globalSettings.wifiPassword);
+	esp32Manager_Init();
+
+	
+
+	debugMIDIPins();
+
+	display_Init();
+
+	
 
 	// Display indicator task
 	BaseType_t taskResult;
@@ -88,7 +96,8 @@ void setup()
 		1); // pin task to core 1 
 	ESP_LOGI(MAIN_TAG, "Device API task created: %d", taskResult);
 	*/
-
+	ESP_LOGD("MIDI DEBUG", "GPIO7 function: %d", GPIO.func_out_sel_cfg[7].func_sel);
+	ESP_LOGD("MIDI DEBUG", "GPIO10 function: %d", GPIO.func_out_sel_cfg[10].func_sel);
 	esp32Manager_CreateTasks();
 	//midi_Init();
 	//clock_Init();
@@ -164,17 +173,20 @@ void defaultGlobalSettingsAssignment()
 
 	// Set all message stacks to empty
 	for(uint8_t j=0; j<NUM_SWITCH_MESSAGES; j++)
-		{
-			// A 0 status byte indicates an 'unset' message and the end of available messages
-			globalSettings.numSwitchPressMessages[0] = 0;
-			globalSettings.numSwitchPressMessages[1] = 0;
-			globalSettings.numSwitchHoldMessages[0] = 0;
-			globalSettings.numSwitchHoldMessages[1] = 0;
-		}
-		for(uint8_t j=0; j<NUM_CUSTOM_MESSAGES; j++)
-		{
-			globalSettings.numCustomMessages = 0;
-		}
+	{
+		globalSettings.numSwitchPressMessages[0] = 1;
+		globalSettings.numSwitchPressMessages[1] = 1;
+		globalSettings.numSwitchHoldMessages[0] = 0;
+		globalSettings.numSwitchHoldMessages[1] = 0;
+	}
+	for(uint8_t j=0; j<NUM_CUSTOM_MESSAGES; j++)
+	{
+		globalSettings.numCustomMessages = 0;
+	}
+	for(uint8_t	j=0; j<NUM_MIDI_INTERFACES; j++)
+	{
+		globalSettings.pcBankOutputs[j] = 1;
+	}
 }
 
 void defaultPresetsAssignment()
@@ -183,9 +195,7 @@ void defaultPresetsAssignment()
 	{
 		char str[64];
 		sprintf(presets[i].name, "Preset %d", i + 1);
-		//strcpy(presets[i].name, str);
 		sprintf(presets[i].secondaryText, "Secondary %d", i + 1);
-		//strcpy(presets[i].secondaryText, str);
 		presets[i].colourOverrideFlag = 0; // Use main colour by default
 		presets[i].colourOverride = 0; // Default colour
 		presets[i].textColourOverrideFlag = 0; // Use main colour by default
@@ -194,7 +204,6 @@ void defaultPresetsAssignment()
 		ESP_LOGI(MAIN_TAG, "Preset %d: %s", i, presets[i].name);
 		for(uint8_t j=0; j<NUM_SWITCH_MESSAGES; j++)
 		{
-			// A 0 status byte indicates an 'unset' message and the end of available messages
 			presets[i].numSwitchPressMessages[0] = 0;
 			presets[i].numSwitchPressMessages[1] = 0;
 			presets[i].numSwitchHoldMessages[0] = 0;
@@ -305,19 +314,28 @@ void sendMidiMessage(MidiMessage message)
 void setOutTypeA()
 {
 	// For Type A, use the tip as the transmitting pin and the ring as the current source
-	TRS_SERIAL_PORT.setPins(MIDI_RX_PIN, MIDI_TX_TIP_PIN, -1, -1);
-	pinMode(MIDI_TX_TIP_PIN, OUTPUT);
-	digitalWrite(MIDI_TX_TIP_PIN, HIGH);
+	//TRS_SERIAL_PORT.begin(31250);
+	Serial1.setPins(MIDI_RX_PIN, MIDI_TX_TIP_PIN, -1, -1);
+	pinMode(MIDI_TX_RING_PIN, OUTPUT);
+	digitalWrite(MIDI_TX_RING_PIN, HIGH);
+	ESP_LOGD("MIDI DEBUG", "Set MIDI out to Type A");
+	//TRS_SERIAL_PORT.begin(31250);
 }
 
 void setOutTypeB()
 {
 	// For Type B, use the ring as the transmitting pin and the tip as the current source
-	TRS_SERIAL_PORT.setPins(MIDI_RX_PIN, MIDI_TX_RING_PIN, -1, -1);
-	pinMode(MIDI_TX_RING_PIN, OUTPUT);
-	digitalWrite(MIDI_TX_RING_PIN, HIGH);
+	//TRS_SERIAL_PORT.begin(31250);
+	Serial1.setPins(MIDI_RX_PIN, MIDI_TX_RING_PIN, -1, -1);
+	pinMode(MIDI_TX_TIP_PIN, OUTPUT);
+	digitalWrite(MIDI_TX_TIP_PIN, HIGH);
+	ESP_LOGD("MIDI DEBUG", "Set MIDI out to Type B");
+	//TRS_SERIAL_PORT.begin(31250);
 }
 
+void debugMIDIPins()
+{
+}
 
 //---------------- MIDI Clock ----------------//
 
@@ -333,9 +351,7 @@ void presetUp()
 	{
 		globalSettings.currentPreset = 0;
 	}
-	display_DrawPresetNumber(globalSettings.currentPreset);
-	display_DrawMainText(presets[globalSettings.currentPreset].name, presets[globalSettings.currentPreset].secondaryText);
-	clock_SetTempo();
+	goToPreset(globalSettings.currentPreset);
 }
 
 void presetDown()
@@ -350,9 +366,7 @@ void presetDown()
 	{
 		globalSettings.currentPreset = NUM_PRESETS - 1;
 	}
-	display_DrawPresetNumber(globalSettings.currentPreset);
-	display_DrawMainText(presets[globalSettings.currentPreset].name, presets[globalSettings.currentPreset].secondaryText);
-	clock_SetTempo();
+	goToPreset(globalSettings.currentPreset);
 }
 
 void goToPreset(uint16_t presetIndex)
@@ -364,13 +378,25 @@ void goToPreset(uint16_t presetIndex)
 	display_DrawPresetNumber(globalSettings.currentPreset);
 	display_DrawMainText(presets[globalSettings.currentPreset].name, presets[globalSettings.currentPreset].secondaryText);
 	clock_SetTempo();
+
+	// Send any PC Bank Output messages. These use 0 to indicate it should not be sent, and 1-indexed channels if it should be sent
+	for(uint8_t i=0; i<NUM_MIDI_INTERFACES; i++)
+	{
+		if(globalSettings.pcBankOutputs[i] > 0 && globalSettings.pcBankOutputs[i] <= 16)
+		{
+			Serial.print("Sending PC on interface ");
+			Serial.println(i);
+			midi_SendMessage((MidiInterfaceType)i, midi::ProgramChange, globalSettings.pcBankOutputs[i], globalSettings.currentPreset, 0);
+		}
+	}
 }
 
 void enterBootloader()
 {
 	//wifi_Disconnect();
-	REG_WRITE(RTC_CNTL_OPTION1_REG, RTC_CNTL_FORCE_DOWNLOAD_BOOT);
-	esp_restart();
+	wifi_Disconnect();
+	delay(50);
+	usb_persist_restart(RESTART_BOOTLOADER);
 }
 
 void factoryReset()
